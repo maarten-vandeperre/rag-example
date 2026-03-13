@@ -1,0 +1,151 @@
+services:
+  postgres:
+    build:
+      context: ./infrastructure/database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rag_app}
+      POSTGRES_USER: ${POSTGRES_USER:-rag_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_password}
+      POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS:---encoding=UTF-8}
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rag_user} -d ${POSTGRES_DB:-rag_app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - rag-network
+
+  weaviate:
+    image: semitechnologies/weaviate:1.22.4
+    restart: unless-stopped
+    environment:
+      QUERY_DEFAULTS_LIMIT: ${WEAVIATE_QUERY_LIMIT:-25}
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: ${WEAVIATE_AUTH_ANONYMOUS:-true}
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      DEFAULT_VECTORIZER_MODULE: ${WEAVIATE_DEFAULT_VECTORIZER:-none}
+      ENABLE_MODULES: ${WEAVIATE_ENABLED_MODULES:-}
+      CLUSTER_HOSTNAME: ${WEAVIATE_CLUSTER_HOSTNAME:-node1}
+      AUTHORIZATION_ADMINLIST_ENABLED: ${WEAVIATE_AUTHORIZATION_ADMINLIST_ENABLED:-false}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+    networks:
+      - rag-network
+
+  weaviate-init:
+    image: curlimages/curl:8.12.1
+    restart: "no"
+    depends_on:
+      - weaviate
+    environment:
+      WEAVIATE_URL: ${WEAVIATE_URL:-http://weaviate:8080}
+    entrypoint: ["/bin/sh", "/schema/docker-entrypoint.sh"]
+    volumes:
+      - ./infrastructure/weaviate:/schema:ro
+    networks:
+      - rag-network
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    expose:
+      - "11434"
+    healthcheck:
+      test: ["CMD", "/bin/ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - rag-network
+
+  ollama-init:
+    image: curlimages/curl:8.12.1
+    restart: "no"
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-tinyllama}
+    entrypoint: ["/bin/sh", "/scripts/docker-entrypoint.sh"]
+    volumes:
+      - ./infrastructure/ollama:/scripts:ro
+    networks:
+      - rag-network
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - weaviate
+      - ollama
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${POSTGRES_DB:-rag_app}
+      DB_USER: ${POSTGRES_USER:-rag_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-rag_password}
+      WEAVIATE_URL: ${WEAVIATE_URL:-http://weaviate:8080}
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-tinyllama}
+      DOCUMENT_STORAGE_PATH: /app/storage/documents
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-41943040}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      APP_ENV: ${APP_ENV:-development}
+      DEVELOPMENT_MODE: ${DEVELOPMENT_MODE:-true}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - document-storage:/app/storage/documents
+    networks:
+      - rag-network
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: ${FRONTEND_API_URL:-/api}
+      REACT_APP_APP_ENV: ${APP_ENV:-development}
+      REACT_APP_MAX_FILE_SIZE: ${MAX_FILE_SIZE:-41943040}
+      REACT_APP_SUPPORTED_FILE_TYPES: ${SUPPORTED_FILE_TYPES:-pdf,md,txt}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - rag-network
+
+networks:
+  rag-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  weaviate-data:
+  document-storage:
+  ollama-models:

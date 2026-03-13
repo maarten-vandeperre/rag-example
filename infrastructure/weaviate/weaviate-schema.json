@@ -1,0 +1,37 @@
+{
+  "class": "DocumentChunk",
+  "description": "A chunk of text from an uploaded document",
+  "vectorizer": "none",
+  "properties": [
+    {
+      "name": "documentId",
+      "dataType": ["text"],
+      "description": "ID of the parent document"
+    },
+    {
+      "name": "chunkIndex",
+      "dataType": ["int"],
+      "description": "Index of this chunk within the document"
+    },
+    {
+      "name": "textContent",
+      "dataType": ["text"],
+      "description": "The actual text content of the chunk"
+    },
+    {
+      "name": "uploadedBy",
+      "dataType": ["text"],
+      "description": "User ID who uploaded the document"
+    },
+    {
+      "name": "fileName",
+      "dataType": ["text"],
+      "description": "Original filename of the document"
+    },
+    {
+      "name": "createdAt",
+      "dataType": ["date"],
+      "description": "When this chunk was created"
+    }
+  ]
+}

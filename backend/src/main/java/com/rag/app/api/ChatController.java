@@ -1,0 +1,178 @@
+package com.rag.app.api;
+
+import com.rag.app.api.dto.ChatQueryRequest;
+import com.rag.app.api.dto.ChatQueryResponse;
+import com.rag.app.api.dto.DocumentReferenceDto;
+import com.rag.app.domain.valueobjects.DocumentReference;
+import com.rag.app.usecases.QueryDocuments;
+import com.rag.app.usecases.models.QueryDocumentsInput;
+import com.rag.app.usecases.models.QueryDocumentsOutput;
+
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.SecurityContext;
+import java.security.Principal;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+@Path("/api/chat")
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
+public class ChatController {
+    private static final String NO_ANSWER_FOUND_MESSAGE = "no answer found";
+    private static final String QUERY_TIMEOUT_MESSAGE = "Query exceeded the allowed response time";
+    private static final String GENERIC_ERROR_MESSAGE = "Unable to process chat query";
+
+    private final QueryDocuments queryDocuments;
+    private final Executor executor;
+
+    @Inject
+    public ChatController(QueryDocuments queryDocuments) {
+        this(queryDocuments, createDaemonExecutor());
+    }
+
+    ChatController(QueryDocuments queryDocuments, Executor executor) {
+        this.queryDocuments = Objects.requireNonNull(queryDocuments, "queryDocuments must not be null");
+        this.executor = Objects.requireNonNull(executor, "executor must not be null");
+    }
+
+    @POST
+    @Path("/query")
+    public Response query(ChatQueryRequest request, @Context SecurityContext securityContext) {
+        try {
+            UUID userId = extractUserId(securityContext);
+            ChatQueryRequest validatedRequest = validateRequest(request);
+            int timeoutMs = validatedRequest.resolvedMaxResponseTimeMs();
+
+            QueryDocumentsOutput output = CompletableFuture
+                .supplyAsync(() -> queryDocuments.execute(new QueryDocumentsInput(userId, validatedRequest.question(), timeoutMs)), executor)
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+
+            return mapOutput(output);
+        } catch (IllegalArgumentException exception) {
+            return badRequest(exception.getMessage());
+        } catch (TimeoutException exception) {
+            return Response.status(Response.Status.REQUEST_TIMEOUT)
+                .entity(errorResponse(QUERY_TIMEOUT_MESSAGE, ChatQueryRequest.DEFAULT_MAX_RESPONSE_TIME_MS))
+                .build();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return internalError();
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof IllegalArgumentException illegalArgumentException) {
+                return badRequest(illegalArgumentException.getMessage());
+            }
+            return internalError();
+        } catch (RuntimeException exception) {
+            return internalError();
+        }
+    }
+
+    private ChatQueryRequest validateRequest(ChatQueryRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("request body must not be null");
+        }
+        if (request.question() == null || request.question().isBlank()) {
+            throw new IllegalArgumentException("question must not be null or empty");
+        }
+        if (request.maxResponseTimeMs() != null && request.maxResponseTimeMs() <= 0) {
+            throw new IllegalArgumentException("maxResponseTimeMs must be positive");
+        }
+        return request;
+    }
+
+    private UUID extractUserId(SecurityContext securityContext) {
+        if (securityContext == null) {
+            throw new IllegalArgumentException("authenticated user is required");
+        }
+
+        Principal principal = securityContext.getUserPrincipal();
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new IllegalArgumentException("authenticated user is required");
+        }
+
+        try {
+            return UUID.fromString(principal.getName());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("authenticated user id must be a valid UUID", exception);
+        }
+    }
+
+    private Response mapOutput(QueryDocumentsOutput output) {
+        if (output.success()) {
+            return Response.ok(new ChatQueryResponse(
+                output.answer(),
+                output.documentReferences().stream().map(this::toDto).toList(),
+                output.responseTimeMs(),
+                true,
+                null
+            )).build();
+        }
+
+        if ("Response time exceeded limit".equals(output.errorMessage())) {
+            return Response.status(Response.Status.REQUEST_TIMEOUT)
+                .entity(errorResponse(QUERY_TIMEOUT_MESSAGE, output.responseTimeMs()))
+                .build();
+        }
+
+        if ("No relevant documents found for the question".equals(output.errorMessage())
+            || "No ready documents available for this query".equals(output.errorMessage())) {
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity(errorResponse(NO_ANSWER_FOUND_MESSAGE, output.responseTimeMs()))
+                .build();
+        }
+
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity(errorResponse(GENERIC_ERROR_MESSAGE, output.responseTimeMs()))
+            .build();
+    }
+
+    private Response badRequest(String message) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity(errorResponse(message, 0))
+            .build();
+    }
+
+    private Response internalError() {
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity(errorResponse(GENERIC_ERROR_MESSAGE, 0))
+            .build();
+    }
+
+    private ChatQueryResponse errorResponse(String message, int responseTimeMs) {
+        return new ChatQueryResponse(null, List.of(), responseTimeMs, false, message);
+    }
+
+    private DocumentReferenceDto toDto(DocumentReference reference) {
+        return new DocumentReferenceDto(
+            reference.documentId().toString(),
+            reference.documentName(),
+            reference.paragraphReference(),
+            reference.relevanceScore()
+        );
+    }
+
+    private static Executor createDaemonExecutor() {
+        ThreadFactory threadFactory = runnable -> {
+            Thread thread = new Thread(runnable, "chat-query-controller");
+            thread.setDaemon(true);
+            return thread;
+        };
+        return Executors.newCachedThreadPool(threadFactory);
+    }
+}

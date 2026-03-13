@@ -1,0 +1,129 @@
+package com.rag.app.api;
+
+import com.rag.app.api.dto.AdminProgressResponse;
+import com.rag.app.api.dto.DocumentListResponse;
+import com.rag.app.api.dto.DocumentSummaryDto;
+import com.rag.app.api.dto.FailedDocumentDto;
+import com.rag.app.api.dto.ProcessingDocumentDto;
+import com.rag.app.api.dto.ProcessingStatisticsDto;
+import com.rag.app.usecases.GetAdminProgress;
+import com.rag.app.usecases.GetUserDocuments;
+import com.rag.app.usecases.models.DocumentSummary;
+import com.rag.app.usecases.models.FailedDocumentInfo;
+import com.rag.app.usecases.models.GetAdminProgressInput;
+import com.rag.app.usecases.models.GetAdminProgressOutput;
+import com.rag.app.usecases.models.GetUserDocumentsInput;
+import com.rag.app.usecases.models.GetUserDocumentsOutput;
+import com.rag.app.usecases.models.ProcessingDocumentInfo;
+import com.rag.app.usecases.models.ProcessingStatistics;
+
+import javax.inject.Inject;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.util.UUID;
+
+@Path("/api")
+@Produces(MediaType.APPLICATION_JSON)
+public class DocumentLibraryResource {
+    private final GetUserDocuments getUserDocuments;
+    private final GetAdminProgress getAdminProgress;
+
+    @Inject
+    public DocumentLibraryResource(GetUserDocuments getUserDocuments, GetAdminProgress getAdminProgress) {
+        this.getUserDocuments = getUserDocuments;
+        this.getAdminProgress = getAdminProgress;
+    }
+
+    @GET
+    @Path("/documents")
+    public Response getDocuments(@HeaderParam("X-User-Id") String userId,
+                                 @QueryParam("includeAll") @DefaultValue("false") boolean includeAll) {
+        try {
+            GetUserDocumentsOutput output = getUserDocuments.execute(new GetUserDocumentsInput(UUID.fromString(userId), includeAll));
+            return Response.ok(toDocumentListResponse(output)).build();
+        } catch (Exception exception) {
+            return Response.serverError().entity(new ErrorResponse(exception.getMessage())).build();
+        }
+    }
+
+    @GET
+    @Path("/admin/documents/progress")
+    public Response getAdminProgress(@HeaderParam("X-User-Id") String userId) {
+        try {
+            GetAdminProgressOutput output = getAdminProgress.execute(new GetAdminProgressInput(userId));
+            return Response.ok(toAdminProgressResponse(output)).build();
+        } catch (IllegalArgumentException exception) {
+            return Response.status(Response.Status.FORBIDDEN).entity(new ErrorResponse(exception.getMessage())).build();
+        } catch (Exception exception) {
+            return Response.serverError().entity(new ErrorResponse(exception.getMessage())).build();
+        }
+    }
+
+    private DocumentListResponse toDocumentListResponse(GetUserDocumentsOutput output) {
+        return new DocumentListResponse(
+            output.documents().stream().map(this::toDocumentSummaryDto).toList(),
+            output.totalCount()
+        );
+    }
+
+    private DocumentSummaryDto toDocumentSummaryDto(DocumentSummary summary) {
+        return new DocumentSummaryDto(
+            summary.documentId().toString(),
+            summary.fileName(),
+            summary.fileSize(),
+            summary.fileType().name(),
+            summary.status().name(),
+            summary.uploadedBy(),
+            summary.uploadedAt(),
+            summary.lastUpdated()
+        );
+    }
+
+    private AdminProgressResponse toAdminProgressResponse(GetAdminProgressOutput output) {
+        return new AdminProgressResponse(
+            toProcessingStatisticsDto(output.processingStatistics()),
+            output.failedDocuments().stream().map(this::toFailedDocumentDto).toList(),
+            output.processingDocuments().stream().map(this::toProcessingDocumentDto).toList()
+        );
+    }
+
+    private ProcessingStatisticsDto toProcessingStatisticsDto(ProcessingStatistics statistics) {
+        return new ProcessingStatisticsDto(
+            statistics.totalDocuments(),
+            statistics.uploadedCount(),
+            statistics.processingCount(),
+            statistics.readyCount(),
+            statistics.failedCount()
+        );
+    }
+
+    private FailedDocumentDto toFailedDocumentDto(FailedDocumentInfo failedDocument) {
+        return new FailedDocumentDto(
+            failedDocument.documentId(),
+            failedDocument.fileName(),
+            failedDocument.uploadedBy(),
+            failedDocument.uploadedAt(),
+            failedDocument.failureReason(),
+            failedDocument.fileSize()
+        );
+    }
+
+    private ProcessingDocumentDto toProcessingDocumentDto(ProcessingDocumentInfo processingDocument) {
+        return new ProcessingDocumentDto(
+            processingDocument.documentId(),
+            processingDocument.fileName(),
+            processingDocument.uploadedBy(),
+            processingDocument.uploadedAt(),
+            processingDocument.processingStartedAt()
+        );
+    }
+
+    public record ErrorResponse(String message) {
+    }
+}

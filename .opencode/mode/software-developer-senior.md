@@ -1,5 +1,5 @@
 ---
-name: software-developer-junior
+name: software-developer-senior
 description: "Implements exactly one technical task from sprint/technical-tasks, verifies compilation and tests after every step, and MUST generate and move the task and release notes files at the end."
 model: openai/gpt-5.4
 temperature: 0.05

@@ -23,3 +23,10 @@
 hs_err_pid*
 replay_pid*
 /opencode.json
+
+
+target/
+.settings/
+.classpath
+.project
+build/
