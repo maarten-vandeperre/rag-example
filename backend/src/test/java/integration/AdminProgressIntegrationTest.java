@@ -4,12 +4,14 @@ import com.rag.app.api.dto.AdminProgressResponse;
 import com.rag.app.api.dto.UploadDocumentResponse;
 import com.rag.app.domain.valueobjects.DocumentStatus;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 
 import javax.ws.rs.core.Response;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Tag("integration")
 class AdminProgressIntegrationTest {
 
     @Test

@@ -1,0 +1,172 @@
+plugins {
+    id 'base'
+    id 'com.github.node-gradle.node'
+}
+
+node {
+    version = '18.20.4'
+    npmVersion = '10.7.0'
+    download = false
+    nodeProjectDir = projectDir
+}
+
+tasks.named('npmInstall') {
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    outputs.dir('node_modules')
+    doFirst {
+        def nodeVersion = providers.exec {
+            commandLine 'node', '--version'
+        }.standardOutput.asText.get().trim()
+        logger.lifecycle("Node.js version: ${nodeVersion}")
+        if (!nodeVersion.startsWith('v18')) {
+            logger.warn("Node.js 18 is recommended, but found: ${nodeVersion}")
+        }
+    }
+}
+
+tasks.named('npmSetup') {
+    enabled = false
+}
+
+def frontendReportsDir = layout.buildDirectory.dir('test-results/frontend')
+def frontendReleaseDir = layout.buildDirectory.dir('release')
+
+tasks.withType(com.github.gradle.node.npm.task.NpmTask).configureEach {
+    doFirst {
+        def command = npmCommand.getOrElse([])
+        logger.info("Executing npm command for ${path}: ${command.join(' ')}")
+    }
+}
+
+tasks.register('dev', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'application'
+    description = 'Starts the React development server.'
+    dependsOn tasks.named('npmInstall')
+    npmCommand = ['start']
+}
+
+tasks.register('test', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'verification'
+    description = 'Runs React unit tests with coverage and JUnit output.'
+    dependsOn tasks.named('npmInstall')
+    environment = [
+        'CI': 'true',
+        'JEST_JUNIT_OUTPUT_DIR': frontendReportsDir.get().asFile.absolutePath,
+        'JEST_JUNIT_OUTPUT_NAME': 'junit.xml'
+    ]
+    npmCommand = ['test', '--', '--coverage', '--watchAll=false', '--reporters=default', '--reporters=jest-junit']
+    inputs.dir('src')
+    outputs.dir('coverage')
+    outputs.file(frontendReportsDir.map { it.file('junit.xml') })
+}
+
+tasks.register('frontendTest') {
+    group = 'verification'
+    description = 'Alias for the frontend test suite.'
+    dependsOn tasks.named('test')
+}
+
+tasks.register('lint', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'verification'
+    description = 'Runs ESLint for the frontend source tree.'
+    dependsOn tasks.named('npmInstall')
+    npmCommand = ['run', 'lint']
+}
+
+tasks.register('buildProd', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'build'
+    description = 'Builds the frontend production bundle.'
+    dependsOn tasks.named('npmInstall')
+    npmCommand = ['run', 'build']
+    inputs.dir('src')
+    inputs.dir('public')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    outputs.dir('build')
+    doFirst {
+        logger.lifecycle('Building React application for production...')
+    }
+    doLast {
+        def buildOutputDir = file('build')
+        if (!buildOutputDir.exists()) {
+            throw new GradleException('Frontend build failed - build directory not created')
+        }
+        def staticDir = file('build/static')
+        if (staticDir.exists()) {
+            def jsFiles = fileTree(staticDir).matching { include '**/*.js' }.files.size()
+            def cssFiles = fileTree(staticDir).matching { include '**/*.css' }.files.size()
+            logger.lifecycle("Frontend build completed: ${jsFiles} JS files, ${cssFiles} CSS files")
+        }
+    }
+}
+
+tasks.register('analyzeBuild') {
+    group = 'verification'
+    description = 'Analyzes the frontend production bundle size.'
+    dependsOn tasks.named('buildProd')
+    doLast {
+        def totalBytes = fileTree('build').files.sum { it.length() ?: 0L }
+        def jsBytes = fileTree('build/static').matching { include '**/*.js' }.files.sum { it.length() ?: 0L }
+        def cssBytes = fileTree('build/static').matching { include '**/*.css' }.files.sum { it.length() ?: 0L }
+        logger.lifecycle("Frontend build analysis: total=${totalBytes} bytes, js=${jsBytes} bytes, css=${cssBytes} bytes")
+    }
+}
+
+tasks.register('verifyBuild') {
+    group = 'verification'
+    description = 'Verifies the frontend build output.'
+    dependsOn tasks.named('buildProd')
+    doLast {
+        def indexFile = file('build/index.html')
+        if (!indexFile.exists()) {
+            throw new GradleException('Expected index.html not found in build output')
+        }
+        def buildSize = fileTree('build').files.sum { it.length() ?: 0L }
+        logger.lifecycle("Frontend build verification passed. Total size: ${buildSize} bytes")
+    }
+}
+
+tasks.register('testComponents', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'verification'
+    description = 'Runs frontend component-focused tests.'
+    dependsOn tasks.named('npmInstall')
+    environment = ['CI': 'true']
+    npmCommand = ['test', '--', '--watchAll=false', '--runInBand', '--testPathPattern=components']
+}
+
+tasks.register('testE2E') {
+    group = 'verification'
+    description = 'Runs end-to-end tests when configured.'
+    onlyIf { file('package.json').text.contains('"test:e2e"') }
+    doLast {
+        exec {
+            workingDir projectDir
+            commandLine 'npm', 'run', 'test:e2e'
+        }
+    }
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('buildProd')
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('test')
+    dependsOn tasks.named('lint')
+}
+
+tasks.register('verify') {
+    group = 'verification'
+    description = 'Runs frontend verification tasks.'
+    dependsOn tasks.named('test')
+    dependsOn tasks.named('testComponents')
+    dependsOn tasks.named('lint')
+    dependsOn tasks.named('buildProd')
+    dependsOn tasks.named('analyzeBuild')
+    dependsOn tasks.named('verifyBuild')
+}
+
+tasks.named('clean') {
+    delete 'build'
+}

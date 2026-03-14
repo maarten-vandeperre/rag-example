@@ -1,0 +1,1 @@
+Operations documents explain that uploads are processed asynchronously and become searchable once processing completes successfully.

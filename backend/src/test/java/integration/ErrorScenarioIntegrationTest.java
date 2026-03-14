@@ -6,6 +6,7 @@ import com.rag.app.api.dto.UploadDocumentResponse;
 import com.rag.app.domain.valueobjects.DocumentStatus;
 import com.rag.app.usecases.models.ProcessDocumentOutput;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 
 import javax.ws.rs.core.Response;
 import java.io.RandomAccessFile;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+@Tag("integration")
 class ErrorScenarioIntegrationTest {
 
     @Test

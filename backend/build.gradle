@@ -1,0 +1,243 @@
+plugins {
+    id 'java'
+    id 'io.quarkus'
+    id 'jacoco'
+}
+
+def javaRelease = providers.gradleProperty('javaVersion').get().toInteger()
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(javaRelease)
+    }
+}
+
+def backendReleaseDir = layout.buildDirectory.dir('release')
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.release = javaRelease
+    options.compilerArgs += ['-Xlint:unchecked']
+    options.deprecation = true
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+    options.release = javaRelease
+    options.compilerArgs += ['-Xlint:unchecked']
+    options.deprecation = true
+}
+
+dependencies {
+    implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
+
+    implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-resteasy-reactive'
+    implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
+    implementation 'io.quarkus:quarkus-jdbc-postgresql'
+    implementation 'io.quarkus:quarkus-smallrye-health'
+    implementation "org.apache.pdfbox:pdfbox:${pdfboxVersion}"
+
+    testImplementation 'io.quarkus:quarkus-junit5'
+    testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'com.h2database:h2'
+}
+
+tasks.register('dev') {
+    group = 'application'
+    description = 'Runs the backend in Quarkus development mode.'
+    dependsOn tasks.named('quarkusDev')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    doFirst {
+        logger.info("Compiling Java sources for ${path}...")
+    }
+    doLast {
+        logger.info("Java compilation completed successfully for ${path}")
+    }
+}
+
+tasks.named('quarkusDev') {
+    doFirst {
+        logger.lifecycle('Starting Quarkus development mode...')
+        logger.lifecycle('If startup fails, check:')
+        logger.lifecycle('1. Database connection and credentials')
+        logger.lifecycle('2. Port 8080 availability')
+        logger.lifecycle('3. Application configuration in application.properties')
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+        showStandardStreams = false
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
+    }
+    maxParallelForks = 1
+    reports {
+        html.required = true
+        junitXml.required = true
+    }
+    finalizedBy tasks.named('jacocoTestReport')
+    afterSuite { desc, result ->
+        if (!desc.parent) {
+            logger.lifecycle("Test Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped)")
+        }
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    group = 'verification'
+    description = 'Runs backend integration tests.'
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    shouldRunAfter tasks.named('test')
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
+    }
+    maxParallelForks = 1
+    reports {
+        html.required = true
+        junitXml.required = true
+    }
+}
+
+tasks.register('unitTest', Test) {
+    group = 'verification'
+    description = 'Runs backend unit tests only.'
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
+    }
+    maxParallelForks = 1
+    reports {
+        html.required = true
+        junitXml.required = true
+    }
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    classDirectories.setFrom(layout.buildDirectory.dir('classes/java/main').map {
+        fileTree(dir: it, exclude: ['**/dto/**', '**/config/**'])
+    })
+}
+
+tasks.register('packageBackend') {
+    group = 'build'
+    description = 'Packages the backend release artifacts.'
+    dependsOn tasks.named('jar')
+    dependsOn tasks.named('fatJar')
+}
+
+tasks.named('jar') {
+    enabled = true
+    archiveClassifier = 'classes'
+    manifest {
+        attributes(
+            'Main-Class': 'io.quarkus.runner.GeneratedMain',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+tasks.register('fatJar', Jar) {
+    group = 'build'
+    description = 'Creates a backend fat JAR with runtime dependencies.'
+    archiveClassifier = 'fat'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn tasks.named('classes')
+    from(sourceSets.main.output)
+    from {
+        configurations.runtimeClasspath.collect { dependency ->
+            dependency.isDirectory() ? dependency : zipTree(dependency)
+        }
+    }
+    manifest {
+        attributes(
+            'Main-Class': 'io.quarkus.runner.GeneratedMain',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+tasks.register('verifyBuild') {
+    group = 'verification'
+    description = 'Verifies backend release artifacts.'
+    dependsOn tasks.named('packageBackend')
+    doLast {
+        def classesJar = tasks.named('jar').get().archiveFile.get().asFile
+        def fatJarFile = tasks.named('fatJar').get().archiveFile.get().asFile
+        if (!classesJar.exists()) {
+            throw new GradleException("Expected classes JAR not found: ${classesJar}")
+        }
+        if (!fatJarFile.exists()) {
+            throw new GradleException("Expected fat JAR not found: ${fatJarFile}")
+        }
+        logger.lifecycle("Backend build verification passed. Classes JAR size: ${classesJar.length()} bytes")
+        logger.lifecycle("Backend fat JAR size: ${fatJarFile.length()} bytes")
+    }
+}
+
+tasks.register('appInfo') {
+    group = 'help'
+    description = 'Displays backend build information.'
+    doLast {
+        logger.lifecycle("Application: ${project.name}")
+        logger.lifecycle("Version: ${project.version}")
+        logger.lifecycle("Java Version: ${javaRelease}")
+        logger.lifecycle("Build Dir: ${layout.buildDirectory.get().asFile}")
+    }
+}
+
+gradle.projectsEvaluated {
+    tasks.named('build').configure { task ->
+        task.setDependsOn(task.dependsOn.findAll { dependency ->
+            dependency != 'quarkusBuild' && dependency != tasks.named('quarkusBuild').get()
+        })
+    }
+}
+
+tasks.register('verify') {
+    group = 'verification'
+    description = 'Runs backend verification tasks.'
+    dependsOn tasks.named('test')
+    dependsOn tasks.named('integrationTest')
+    dependsOn tasks.named('packageBackend')
+    dependsOn tasks.named('verifyBuild')
+}

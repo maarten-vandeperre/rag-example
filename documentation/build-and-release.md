@@ -1,0 +1,177 @@
+# Build And Release
+
+## Workspace layout
+
+The root Gradle build in `build.gradle` manages two subprojects:
+
+- `backend`
+- `frontend`
+
+`settings.gradle` includes both modules, and `gradle.properties` sets Java 17 plus shared workspace metadata.
+
+## Daily commands
+
+```bash
+./gradlew setup
+./gradlew dev
+./gradlew integrationTest
+./gradlew testAll
+./gradlew testAllWithReport
+./gradlew buildWorkspace
+./gradlew packageRelease
+```
+
+## Backend Gradle tasks
+
+```bash
+./gradlew :backend:dev
+./gradlew :backend:test
+./gradlew :backend:unitTest
+./gradlew :backend:integrationTest
+./gradlew :backend:packageBackend
+./gradlew :backend:fatJar
+./gradlew :backend:verifyBuild
+./gradlew :backend:verify
+```
+
+What they do:
+
+- `dev` starts Quarkus development mode
+- `test` runs non-integration tests
+- `integrationTest` runs tests tagged `integration`
+- `packageBackend` builds the classes JAR and fat JAR
+- `verifyBuild` checks both backend artifacts exist
+
+Example:
+
+```bash
+./gradlew :backend:integrationTest
+```
+
+## Frontend Gradle tasks
+
+```bash
+./gradlew :frontend:npmInstall
+./gradlew :frontend:dev
+./gradlew :frontend:test
+./gradlew :frontend:testComponents
+./gradlew :frontend:lint
+./gradlew :frontend:buildProd
+./gradlew :frontend:analyzeBuild
+./gradlew :frontend:verifyBuild
+./gradlew :frontend:verify
+```
+
+Notes:
+
+- Node.js 18 is recommended and checked during install
+- frontend tests emit coverage plus JUnit XML output
+- `verifyBuild` checks that `build/index.html` exists
+
+## Workspace orchestration tasks
+
+```bash
+./gradlew healthCheck
+./gradlew integrationTest
+./gradlew diagnostics
+./gradlew cleanAll
+./gradlew buildAll
+./gradlew verifyAll
+./gradlew quickBuild
+./gradlew prepareRelease
+./gradlew buildWorkspace
+```
+
+Important behavior:
+
+- `healthCheck` validates Java version, module structure, and dependency resolution
+- `integrationTest` runs root-level Gradle workflow integration tests from `src/test/integration/java/gradle/`
+- `diagnostics` prints environment and task metadata for escalation
+- `quickBuild` packages the backend and builds the production frontend bundle
+- `buildWorkspace` verifies backend and frontend build outputs together
+- `prepareRelease` runs verification before building release outputs
+
+## Gradle workflow integration tests
+
+The root `integrationTest` task validates the workspace build flow end to end after prerequisite tasks have produced artifacts.
+
+What it covers:
+
+- environment setup via `healthCheck`
+- frontend dependency installation assumptions
+- aggregated test report generation
+- backend and frontend build outputs
+- release archive generation
+- diagnostics and failure-banner behavior
+- development task wiring through `./gradlew dev --dry-run`
+
+Implementation location:
+
+- `src/test/integration/java/gradle/WorkflowIntegrationTest.java`
+- `src/test/integration/java/gradle/BuildProcessTest.java`
+- `src/test/integration/java/gradle/DevelopmentModeTest.java`
+- `src/test/integration/java/gradle/ErrorHandlingTest.java`
+- `src/test/integration/java/gradle/GradleCommandRunner.java`
+
+Example:
+
+```bash
+./gradlew --no-daemon integrationTest
+```
+
+Notes:
+
+- the test runner invokes nested Gradle commands with `--no-parallel` and `--max-workers=1` for stability
+- release archive assertions locate artifacts dynamically instead of relying on hash-specific asset names
+- the development-mode coverage currently verifies task wiring, not a long-running live startup session
+
+## Test reporting
+
+Aggregated test reports are generated under `build/reports/allTests`.
+
+Example:
+
+```bash
+./gradlew testAllWithReport
+```
+
+Outputs:
+
+- backend aggregated report: `build/reports/allTests/backend/`
+- frontend summary: `build/reports/allTests/frontend/index.html`
+
+Backend test split:
+
+- unit tests: default `test` and `unitTest`
+- integration tests: `integrationTest`
+
+## Release outputs
+
+Backend artifacts:
+
+- classes JAR in `backend/build/libs/`
+- fat JAR in `backend/build/libs/`
+
+Frontend artifact:
+
+- production bundle in `frontend/build/`
+
+Release packaging:
+
+```bash
+./gradlew packageRelease
+```
+
+The release zip includes:
+
+- backend libs
+- frontend build output
+- `README.md`
+- `LICENSE`
+- `docker-compose.yml`
+- `gradlew`, `gradlew.bat`
+- `gradle/`
+
+## Legacy build paths
+
+The backend Maven build in `backend/pom.xml` still exists for module-level work, but the documented workspace flow is Gradle-first.

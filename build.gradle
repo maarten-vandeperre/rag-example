@@ -1,0 +1,395 @@
+plugins {
+    id 'base'
+    id 'java'
+    id 'io.quarkus' version '2.16.5.Final' apply false
+    id 'com.github.node-gradle.node' version '7.0.2' apply false
+}
+
+import org.gradle.api.tasks.testing.TestReport
+import org.gradle.jvm.tasks.Jar
+import groovy.xml.XmlSlurper
+
+group = 'com.rag.app'
+version = '1.0.0-SNAPSHOT'
+
+sourceSets {
+    integrationTest {
+        java.srcDir 'src/test/integration/java'
+        resources.srcDir 'src/test/integration/resources'
+        compileClasspath += sourceSets.main.output + sourceSets.test.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    integrationTestImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    integrationTestImplementation 'org.assertj:assertj-core:3.26.3'
+    integrationTestImplementation 'org.awaitility:awaitility:4.2.1'
+    integrationTestRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.register('integrationTest', Test) {
+    group = 'verification'
+    description = 'Runs Gradle workflow integration tests.'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter tasks.named('test')
+    dependsOn tasks.named('healthCheck')
+    dependsOn tasks.named('testAllWithReport')
+    dependsOn tasks.named('buildWorkspace')
+    dependsOn tasks.named('packageRelease')
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+    }
+}
+
+def failureBanner = { Throwable failure ->
+    logger.error('')
+    logger.error('=' * 80)
+    logger.error('BUILD FAILED')
+    logger.error('=' * 80)
+    logger.error("Failure: ${failure.message ?: 'Unknown failure'}")
+    if (failure.cause?.message) {
+        logger.error("Cause: ${failure.cause.message}")
+    }
+    logger.error('')
+    logger.error('For escalation to the lead architect, include:')
+    logger.error('1. This error message')
+    logger.error("2. Gradle version: ${gradle.gradleVersion}")
+    logger.error("3. Java version: ${System.getProperty('java.version')}")
+    logger.error("4. OS: ${System.getProperty('os.name')} ${System.getProperty('os.version')}")
+    logger.error("5. Command executed: ${gradle.startParameter.taskNames.join(' ')}")
+    logger.error('6. Relevant module logs and report paths')
+    logger.error('')
+    logger.error('Troubleshooting steps:')
+    logger.error('1. Run with --stacktrace for detailed error information')
+    logger.error('2. Run with --info or --debug for verbose logging')
+    logger.error('3. Check module-specific reports under build/reports')
+    logger.error('4. Verify Java, Node.js, and dependency prerequisites')
+    logger.error('=' * 80)
+}
+
+allprojects {
+    group = rootProject.group
+    version = rootProject.version
+
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    taskGraph.allTasks.each { task ->
+        task.doFirst {
+            logger.info("Starting task: ${task.path}")
+        }
+        task.doLast {
+            logger.info("Completed task: ${task.path}")
+        }
+    }
+}
+
+gradle.buildFinished { result ->
+    if (result.failure) {
+        failureBanner(result.failure)
+    } else {
+        logger.lifecycle('')
+        logger.lifecycle('BUILD SUCCESSFUL')
+        logger.lifecycle('All tasks completed successfully.')
+    }
+}
+
+subprojects {
+    apply plugin: 'base'
+
+    if (file('src/main/java').exists() || file('src/test/java').exists()) {
+        apply plugin: 'java'
+
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(providers.gradleProperty('javaVersion').get().toInteger())
+            }
+        }
+
+        tasks.withType(Test).configureEach {
+            useJUnitPlatform()
+        }
+    }
+}
+
+def existingTasks = { String taskName ->
+    subprojects.collect { project -> project.tasks.findByName(taskName) }.findAll { it != null }
+}
+
+tasks.register('workspaceClean') {
+    group = 'build'
+    description = 'Cleans all workspace modules.'
+    dependsOn(existingTasks('clean'))
+}
+
+tasks.register('workspaceBuild') {
+    group = 'build'
+    description = 'Builds all workspace modules with available build tasks.'
+    dependsOn(existingTasks('build'))
+    doLast {
+        logger.lifecycle('Full workspace build completed successfully.')
+    }
+}
+
+tasks.register('workspaceTest') {
+    group = 'verification'
+    description = 'Runs all workspace module tests with available test tasks.'
+    dependsOn(existingTasks('test'))
+    doLast {
+        logger.lifecycle('All tests completed. Check individual module reports for details.')
+    }
+}
+
+tasks.register('setup') {
+    group = 'setup'
+    description = 'Sets up the workspace development environment.'
+    dependsOn(':frontend:npmInstall')
+    doLast {
+        logger.lifecycle('Development environment setup complete.')
+        logger.lifecycle("Run './gradlew dev' to start development mode.")
+    }
+}
+
+tasks.register('dev') {
+    group = 'application'
+    description = 'Starts backend and frontend development tasks.'
+    dependsOn(':backend:dev', ':frontend:dev')
+    doFirst {
+        logger.lifecycle('Starting full-stack development environment...')
+        logger.lifecycle('Backend will be available at: http://localhost:8080')
+        logger.lifecycle('Frontend will be available at: http://localhost:3000')
+    }
+}
+
+tasks.register('testAll') {
+    group = 'verification'
+    description = 'Runs all tests across backend and frontend.'
+    dependsOn(':backend:test', ':backend:integrationTest', ':frontend:test', ':frontend:testComponents')
+    doLast {
+        logger.lifecycle('All tests completed. Check individual module reports for details.')
+    }
+}
+
+tasks.register('buildAll') {
+    group = 'build'
+    description = 'Builds both backend and frontend modules.'
+    dependsOn(':backend:build', ':frontend:build')
+    doLast {
+        logger.lifecycle('Full workspace build completed successfully.')
+    }
+}
+
+tasks.register('verifyAll') {
+    group = 'verification'
+    description = 'Runs verification tasks across the workspace.'
+    dependsOn(':backend:verify', ':frontend:verify')
+}
+
+tasks.register('cleanAll') {
+    group = 'build'
+    description = 'Cleans all workspace modules.'
+    dependsOn(':backend:clean', ':frontend:clean')
+}
+
+tasks.register('prepareRelease') {
+    group = 'release'
+    description = 'Prepares release-ready workspace outputs.'
+    dependsOn('verifyAll', 'buildAll')
+    doLast {
+        logger.lifecycle('Release preparation completed.')
+        logger.lifecycle('Backend JAR: backend/build/libs/')
+        logger.lifecycle('Frontend build: frontend/build/')
+    }
+}
+
+tasks.register('buildWorkspace') {
+    group = 'build'
+    description = 'Builds the workspace with packaging verification.'
+    dependsOn(':backend:verifyBuild', ':frontend:verifyBuild')
+    doLast {
+        logger.lifecycle('=== Workspace Build Summary ===')
+        logger.lifecycle("Backend classes JAR: ${project(':backend').tasks.named('jar').get().archiveFile.get().asFile}")
+        logger.lifecycle("Backend fat JAR: ${project(':backend').tasks.named('fatJar').get().archiveFile.get().asFile}")
+        logger.lifecycle('Frontend build: frontend/build/')
+        logger.lifecycle('Build completed successfully!')
+    }
+}
+
+tasks.register('quickBuild') {
+    group = 'build'
+    description = 'Runs a quick workspace build without release packaging.'
+    dependsOn(':backend:packageBackend', ':frontend:buildProd')
+}
+
+tasks.register('packageRelease', Zip) {
+    group = 'release'
+    description = 'Packages backend and frontend release artifacts.'
+    dependsOn('buildWorkspace')
+    dependsOn(':frontend:test')
+    archiveFileName = "${project.name}-${project.version}.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+
+    from(project(':backend').layout.buildDirectory.dir('libs')) {
+        into 'backend/libs'
+    }
+
+    from(project(':frontend').layout.projectDirectory.dir('build')) {
+        into 'frontend'
+    }
+
+    from('.') {
+        include 'README.md', 'LICENSE', 'docker-compose.yml', 'gradlew', 'gradlew.bat'
+        include 'gradle/**'
+    }
+
+    doLast {
+        logger.lifecycle("Release package created: ${archiveFile.get().asFile}")
+    }
+}
+
+tasks.register('backendTestReport', TestReport) {
+    group = 'verification'
+    description = 'Aggregates backend Gradle test reports.'
+    destinationDirectory = layout.buildDirectory.dir('reports/allTests/backend')
+    testResults.from(project(':backend').tasks.named('test'))
+    testResults.from(project(':backend').tasks.named('integrationTest'))
+}
+
+tasks.register('frontendTestReport') {
+    group = 'verification'
+    description = 'Generates an aggregated frontend test summary.'
+    dependsOn(':frontend:test')
+    outputs.file(layout.buildDirectory.file('reports/allTests/frontend/index.html'))
+    doLast {
+        def reportDir = layout.buildDirectory.dir('reports/allTests/frontend').get().asFile
+        reportDir.mkdirs()
+        def junitFile = project(':frontend').layout.buildDirectory.file('test-results/frontend/junit.xml').get().asFile
+        def summary = junitFile.exists() ? new XmlSlurper().parse(junitFile) : null
+        def suites = summary == null ? 0 : (summary.@tests as String ?: summary.@testsuites as String ?: '0')
+        def failures = summary == null ? 0 : (summary.@failures as String ?: '0')
+        def skipped = summary == null ? 0 : (summary.@skipped as String ?: '0')
+        new File(reportDir, 'index.html').text = """
+            <html>
+            <head><title>Frontend Test Report</title></head>
+            <body>
+              <h1>Frontend Test Report</h1>
+              <p>Suites: ${suites}</p>
+              <p>Failures: ${failures}</p>
+              <p>Skipped: ${skipped}</p>
+              <p>Coverage directory: ${project(':frontend').layout.projectDirectory.dir('coverage').asFile}</p>
+            </body>
+            </html>
+        """.stripIndent()
+    }
+}
+
+tasks.register('testAllWithReport') {
+    group = 'verification'
+    description = 'Runs all tests and generates aggregated reports.'
+    dependsOn('testAll', 'backendTestReport', 'frontendTestReport')
+    doLast {
+        logger.lifecycle('Test execution completed.')
+        logger.lifecycle("Aggregated report available at: ${layout.buildDirectory.dir('reports/allTests').get().asFile}/")
+    }
+}
+
+tasks.register('testContinuous') {
+    group = 'verification'
+    description = 'Runs workspace tests continuously for changed modules.'
+    dependsOn(':backend:test', ':frontend:test')
+}
+
+tasks.register('healthCheck') {
+    group = 'verification'
+    description = 'Validates the Gradle build environment and module structure.'
+    doLast {
+        logger.lifecycle('=== Build Environment Health Check ===')
+        def javaVersion = System.getProperty('java.version')
+        def currentJavaFeature = Runtime.version().feature()
+        def requiredJavaFeature = providers.gradleProperty('javaVersion').get().toInteger()
+        logger.lifecycle("Java Version: ${javaVersion}")
+        if (currentJavaFeature < requiredJavaFeature) {
+            throw new GradleException("Java ${requiredJavaFeature}+ is required, but found: ${javaVersion}")
+        }
+
+        logger.lifecycle("Gradle Version: ${gradle.gradleVersion}")
+
+        def maxMemoryMb = (Runtime.runtime.maxMemory() / 1024 / 1024) as long
+        logger.lifecycle("Max Memory: ${maxMemoryMb} MB")
+        if (maxMemoryMb < 1024) {
+            logger.warn('Low memory detected. Consider increasing heap size with -Xmx')
+        }
+
+        ['backend', 'frontend'].each { moduleName ->
+            def moduleDir = file(moduleName)
+            if (!moduleDir.exists()) {
+                throw new GradleException("Required module directory not found: ${moduleName}")
+            }
+            logger.lifecycle("Module '${moduleName}': OK")
+        }
+
+        [['backend', 'build.gradle'], ['frontend', 'package.json'], ['frontend', 'package-lock.json']].each { entry ->
+            def expectedFile = file("${entry[0]}/${entry[1]}")
+            if (!expectedFile.exists()) {
+                throw new GradleException("Required workspace file not found: ${expectedFile}")
+            }
+        }
+
+        logger.lifecycle('Workspace Configuration: OK')
+        logger.lifecycle('=== Health Check Passed ===')
+    }
+}
+
+tasks.register('diagnostics') {
+    group = 'help'
+    description = 'Collects diagnostic information for Gradle troubleshooting.'
+    doLast {
+        logger.lifecycle('=== Diagnostic Information ===')
+        logger.lifecycle("Gradle Version: ${gradle.gradleVersion}")
+        logger.lifecycle("Java Version: ${System.getProperty('java.version')}")
+        logger.lifecycle("Java Vendor: ${System.getProperty('java.vendor')}")
+        logger.lifecycle("OS: ${System.getProperty('os.name')} ${System.getProperty('os.version')}")
+        logger.lifecycle("Architecture: ${System.getProperty('os.arch')}")
+        logger.lifecycle("User: ${System.getProperty('user.name')}")
+        logger.lifecycle("Working Directory: ${System.getProperty('user.dir')}")
+        logger.lifecycle("Gradle User Home: ${gradle.gradleUserHomeDir}")
+        logger.lifecycle('')
+        logger.lifecycle('Environment Variables:')
+        ['JAVA_HOME', 'GRADLE_OPTS', 'GRADLE_USER_HOME'].each { envVar ->
+            logger.lifecycle("${envVar}: ${System.getenv(envVar) ?: 'Not set'}")
+        }
+        logger.lifecycle('')
+        logger.lifecycle('Project Properties:')
+        project.properties.findAll { key, value -> key.toString().startsWith('org.gradle') }.each { key, value ->
+            logger.lifecycle("${key}: ${value}")
+        }
+        logger.lifecycle('')
+        logger.lifecycle('Available Tasks:')
+        tasks.matching { it.group != null }.sort { left, right -> left.path <=> right.path }.each { task ->
+            logger.lifecycle("${task.path} - ${task.description ?: 'No description'}")
+        }
+        logger.lifecycle('=== End Diagnostic Information ===')
+    }
+}
+
+tasks.named('clean') {
+    dependsOn(tasks.named('workspaceClean'))
+}

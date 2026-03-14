@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "startQuarkusDev",
+      "type": "shell",
+      "command": "./gradlew",
+      "args": [":backend:quarkusDev"],
+      "group": "build",
+      "isBackground": true
+    },
+    {
+      "label": "runTests",
+      "type": "shell",
+      "command": "./gradlew",
+      "args": ["testAll"],
+      "group": "test"
+    }
+  ]
+}
