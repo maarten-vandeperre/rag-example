@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { getAuthHeader } from '../../config/keycloak';
 import FailedDocumentsList from './FailedDocumentsList';
 import ProcessingDocumentsList from './ProcessingDocumentsList';
 import ProcessingStatistics from './ProcessingStatistics';
@@ -30,6 +31,7 @@ function AdminProgress({ apiUrl, userId, userRole, fetchImpl = fetch }) {
           headers: {
             'Content-Type': 'application/json',
             'X-User-Id': userId,
+            ...getAuthHeader(),
           },
         });
         const payload = await response.json();

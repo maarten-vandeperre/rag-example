@@ -2,6 +2,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import AdminProgress from './AdminProgress';
 
+// Mock the keycloak config
+jest.mock('../../config/keycloak', () => ({
+  getAuthHeader: () => ({ Authorization: 'Bearer dev-token' }),
+}));
+
 const progressPayload = {
   statistics: {
     totalDocuments: 10,
@@ -60,7 +65,10 @@ describe('AdminProgress', () => {
     expect(screen.getByText('contract.pdf')).toBeInTheDocument();
     expect(screen.getByText('1m 5s')).toBeInTheDocument();
     expect(fetchImpl).toHaveBeenCalledWith('/api/admin/documents/progress', expect.objectContaining({
-      headers: expect.objectContaining({ 'X-User-Id': '11111111-1111-1111-1111-111111111111' }),
+      headers: expect.objectContaining({ 
+        'X-User-Id': '11111111-1111-1111-1111-111111111111',
+        'Authorization': 'Bearer dev-token'
+      }),
     }));
   });
 
