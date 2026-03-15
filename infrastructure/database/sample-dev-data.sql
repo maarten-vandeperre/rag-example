@@ -2,19 +2,19 @@
 
 INSERT INTO users (user_id, username, email, first_name, last_name, role, keycloak_user_id)
 VALUES
-    ('user-001', 'john.doe', 'john.doe@example.com', 'John', 'Doe', 'STANDARD', 'john.doe'),
-    ('user-002', 'jane.admin', 'jane.admin@example.com', 'Jane', 'Admin', 'ADMIN', 'jane.admin'),
-    ('user-003', 'test.user', 'test.user@example.com', 'Test', 'User', 'STANDARD', 'test.user'),
-    ('user-004', 'demo.user', 'demo.user@example.com', 'Demo', 'User', 'STANDARD', 'demo.user')
+    ('11111111-1111-1111-1111-111111111111', 'john.doe', 'john.doe@example.com', 'John', 'Doe', 'STANDARD', 'john.doe'),
+    ('22222222-2222-2222-2222-222222222222', 'jane.admin', 'jane.admin@example.com', 'Jane', 'Admin', 'ADMIN', 'jane.admin'),
+    ('33333333-3333-3333-3333-333333333333', 'test.user', 'test.user@example.com', 'Test', 'User', 'STANDARD', 'test.user'),
+    ('44444444-4444-4444-4444-444444444444', 'demo.user', 'demo.user@example.com', 'Demo', 'User', 'STANDARD', 'demo.user')
 ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO documents (document_id, file_name, file_size, file_type, uploaded_by, status, content_hash)
 VALUES
-    ('doc-001', 'sample-guide.pdf', 1024000, 'PDF', 'user-001', 'READY', 'hash-001'),
-    ('doc-002', 'project-readme.md', 5120, 'MARKDOWN', 'user-001', 'READY', 'hash-002'),
-    ('doc-003', 'meeting-notes.txt', 2048, 'PLAIN_TEXT', 'user-003', 'READY', 'hash-003'),
-    ('doc-004', 'large-document.pdf', 15000000, 'PDF', 'user-002', 'PROCESSING', 'hash-004'),
-    ('doc-005', 'failed-upload.pdf', 512000, 'PDF', 'user-003', 'FAILED', 'hash-005')
+    ('doc-001', 'sample-guide.pdf', 1024000, 'PDF', '11111111-1111-1111-1111-111111111111', 'READY', 'hash-001'),
+    ('doc-002', 'project-readme.md', 5120, 'MARKDOWN', '11111111-1111-1111-1111-111111111111', 'READY', 'hash-002'),
+    ('doc-003', 'meeting-notes.txt', 2048, 'PLAIN_TEXT', '33333333-3333-3333-3333-333333333333', 'READY', 'hash-003'),
+    ('doc-004', 'large-document.pdf', 15000000, 'PDF', '22222222-2222-2222-2222-222222222222', 'PROCESSING', 'hash-004'),
+    ('doc-005', 'failed-upload.pdf', 512000, 'PDF', '33333333-3333-3333-3333-333333333333', 'FAILED', 'hash-005')
 ON CONFLICT (document_id) DO NOTHING;
 
 UPDATE documents
@@ -33,10 +33,10 @@ WHERE status = 'FAILED';
 
 INSERT INTO chat_messages (message_id, user_id, question, answer, response_time_ms)
 VALUES
-    ('msg-001', 'user-001', 'What is the main topic of the sample guide?', 'The sample guide covers the basics of document management and provides step-by-step instructions for uploading and organizing files.', 1500),
-    ('msg-002', 'user-001', 'How do I upload a document?', 'Navigate to the document library, click upload, choose a file, and wait for processing to finish.', 1200),
-    ('msg-003', 'user-003', 'What are the meeting notes about?', 'The meeting notes discuss the quarterly review and upcoming project milestones.', 800),
-    ('msg-004', 'user-002', 'Show me all failed uploads', 'There is currently 1 failed upload: failed-upload.pdf uploaded by test.user.', 2100)
+    ('msg-001', '11111111-1111-1111-1111-111111111111', 'What is the main topic of the sample guide?', 'The sample guide covers the basics of document management and provides step-by-step instructions for uploading and organizing files.', 1500),
+    ('msg-002', '11111111-1111-1111-1111-111111111111', 'How do I upload a document?', 'Navigate to the document library, click upload, choose a file, and wait for processing to finish.', 1200),
+    ('msg-003', '33333333-3333-3333-3333-333333333333', 'What are the meeting notes about?', 'The meeting notes discuss the quarterly review and upcoming project milestones.', 800),
+    ('msg-004', '22222222-2222-2222-2222-222222222222', 'Show me all failed uploads', 'There is currently 1 failed upload: failed-upload.pdf uploaded by test.user.', 2100)
 ON CONFLICT (message_id) DO NOTHING;
 
 INSERT INTO document_references (reference_id, message_id, document_id, document_name, paragraph_reference, relevance_score)
@@ -57,9 +57,9 @@ ON CONFLICT (chunk_id) DO NOTHING;
 
 INSERT INTO user_sessions (session_id, user_id, expires_at)
 VALUES
-    ('session-001', 'user-001', CURRENT_TIMESTAMP + INTERVAL '1 day'),
-    ('session-002', 'user-002', CURRENT_TIMESTAMP + INTERVAL '1 day'),
-    ('session-003', 'user-003', CURRENT_TIMESTAMP + INTERVAL '1 day')
+    ('session-001', '11111111-1111-1111-1111-111111111111', CURRENT_TIMESTAMP + INTERVAL '1 day'),
+    ('session-002', '22222222-2222-2222-2222-222222222222', CURRENT_TIMESTAMP + INTERVAL '1 day'),
+    ('session-003', '33333333-3333-3333-3333-333333333333', CURRENT_TIMESTAMP + INTERVAL '1 day')
 ON CONFLICT (session_id) DO NOTHING;
 
 ANALYZE users;

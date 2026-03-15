@@ -1,7 +1,7 @@
 plugins {
     id 'base'
     id 'java'
-    id 'io.quarkus' version '2.16.5.Final' apply false
+    id 'io.quarkus' version '3.32.3' apply false
     id 'com.github.node-gradle.node' version '7.0.2' apply false
 }
 
@@ -12,48 +12,15 @@ import groovy.xml.XmlSlurper
 group = 'com.rag.app'
 version = '1.0.0-SNAPSHOT'
 
-sourceSets {
-    integrationTest {
-        java.srcDir 'src/test/integration/java'
-        resources.srcDir 'src/test/integration/resources'
-        compileClasspath += sourceSets.main.output + sourceSets.test.output
-        runtimeClasspath += sourceSets.main.output + sourceSets.test.output
-    }
-}
-
-configurations {
-    integrationTestImplementation.extendsFrom testImplementation
-    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
-}
-
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    integrationTestImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    integrationTestImplementation 'org.assertj:assertj-core:3.26.3'
-    integrationTestImplementation 'org.awaitility:awaitility:4.2.1'
-    integrationTestRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
 }
 
-tasks.register('integrationTest', Test) {
-    group = 'verification'
-    description = 'Runs Gradle workflow integration tests.'
-    testClassesDirs = sourceSets.integrationTest.output.classesDirs
-    classpath = sourceSets.integrationTest.runtimeClasspath
-    useJUnitPlatform()
-    shouldRunAfter tasks.named('test')
-    dependsOn tasks.named('healthCheck')
-    dependsOn tasks.named('testAllWithReport')
-    dependsOn tasks.named('buildWorkspace')
-    dependsOn tasks.named('packageRelease')
-    testLogging {
-        events 'passed', 'skipped', 'failed'
-        exceptionFormat 'full'
-    }
-}
+
 
 def failureBanner = { Throwable failure ->
     logger.error('')

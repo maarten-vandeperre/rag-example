@@ -28,12 +28,14 @@ compileTestJava {
     options.deprecation = true
 }
 
+
+
 dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
 
     implementation 'io.quarkus:quarkus-arc'
-    implementation 'io.quarkus:quarkus-resteasy-reactive'
-    implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
+    implementation 'io.quarkus:quarkus-rest'  // Updated from resteasy-reactive
+    implementation 'io.quarkus:quarkus-rest-jackson'  // Updated from resteasy-reactive-jackson
     implementation 'io.quarkus:quarkus-jdbc-postgresql'
     implementation 'io.quarkus:quarkus-smallrye-health'
     implementation 'io.quarkus:quarkus-oidc'
@@ -98,8 +100,8 @@ tasks.named('test') {
     }
     systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
     testLogging {
-        events 'passed', 'skipped', 'failed'
-        exceptionFormat 'full'
+        events = ['passed', 'skipped', 'failed']
+        exceptionFormat = 'full'
         showStandardStreams = false
         showCauses = true
         showExceptions = true
@@ -129,8 +131,8 @@ tasks.register('integrationTest', Test) {
     classpath = sourceSets.test.runtimeClasspath
     systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
     testLogging {
-        events 'passed', 'skipped', 'failed'
-        exceptionFormat 'full'
+        events = ['passed', 'skipped', 'failed']
+        exceptionFormat = 'full'
         showCauses = true
         showExceptions = true
         showStackTraces = true
@@ -152,8 +154,8 @@ tasks.register('unitTest', Test) {
     classpath = sourceSets.test.runtimeClasspath
     systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
     testLogging {
-        events 'passed', 'skipped', 'failed'
-        exceptionFormat 'full'
+        events = ['passed', 'skipped', 'failed']
+        exceptionFormat = 'full'
         showCauses = true
         showExceptions = true
         showStackTraces = true

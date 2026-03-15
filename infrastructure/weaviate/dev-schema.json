@@ -6,13 +6,17 @@
       "vectorizer": "none",
       "vectorIndexType": "hnsw",
       "vectorIndexConfig": {
-        "distance": "cosine",
+        "skip": false,
+        "cleanupIntervalSeconds": 300,
         "maxConnections": 64,
         "efConstruction": 128,
+        "ef": -1,
         "dynamicEfMin": 100,
         "dynamicEfMax": 500,
         "dynamicEfFactor": 8,
-        "vectorCacheMaxObjects": 100000
+        "vectorCacheMaxObjects": 1000000000000,
+        "flatSearchCutoff": 40000,
+        "distance": "cosine"
       },
       "properties": [
         {
@@ -54,7 +58,7 @@
         {
           "name": "fileType",
           "dataType": ["text"],
-          "description": "Type of the source file",
+          "description": "Type of the source file (PDF, MARKDOWN, PLAIN_TEXT)",
           "indexFilterable": true,
           "indexSearchable": false
         },
@@ -68,54 +72,7 @@
         {
           "name": "chunkSize",
           "dataType": ["int"],
-          "description": "Size of the chunk in characters",
-          "indexFilterable": true,
-          "indexSearchable": false
-        }
-      ]
-    },
-    {
-      "class": "UserQuery",
-      "description": "User queries for analytics and improvement",
-      "vectorizer": "none",
-      "vectorIndexType": "hnsw",
-      "vectorIndexConfig": {
-        "distance": "cosine"
-      },
-      "properties": [
-        {
-          "name": "userId",
-          "dataType": ["text"],
-          "description": "ID of the user who made the query",
-          "indexFilterable": true,
-          "indexSearchable": false
-        },
-        {
-          "name": "queryText",
-          "dataType": ["text"],
-          "description": "The actual query text",
-          "indexFilterable": false,
-          "indexSearchable": true,
-          "tokenization": "word"
-        },
-        {
-          "name": "timestamp",
-          "dataType": ["date"],
-          "description": "When the query was made",
-          "indexFilterable": true,
-          "indexSearchable": false
-        },
-        {
-          "name": "responseTime",
-          "dataType": ["int"],
-          "description": "Response time in milliseconds",
-          "indexFilterable": true,
-          "indexSearchable": false
-        },
-        {
-          "name": "foundResults",
-          "dataType": ["boolean"],
-          "description": "Whether relevant results were found",
+          "description": "Size of the text chunk in characters",
           "indexFilterable": true,
           "indexSearchable": false
         }

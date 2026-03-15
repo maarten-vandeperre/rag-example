@@ -6,8 +6,8 @@ import com.rag.app.usecases.models.FailedDocumentInfo;
 import com.rag.app.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.usecases.models.ProcessingStatistics;
 import com.rag.app.usecases.repositories.DocumentRepository;
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import javax.sql.DataSource;
 import java.sql.Connection;

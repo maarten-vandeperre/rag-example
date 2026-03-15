@@ -2,7 +2,7 @@ package com.rag.app.infrastructure.llm;
 
 import com.rag.app.usecases.models.DocumentChunk;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;

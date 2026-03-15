@@ -16,7 +16,7 @@ import com.rag.app.usecases.repositories.UserRepository;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -178,6 +178,11 @@ class DocumentUploadControllerTest {
         @Override
         public Path uploadedFile() {
             return path;
+        }
+
+        @Override
+        public jakarta.ws.rs.core.MultivaluedMap<String, String> getHeaders() {
+            return new jakarta.ws.rs.core.MultivaluedHashMap<>();
         }
     }
 

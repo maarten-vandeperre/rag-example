@@ -4,8 +4,8 @@ import com.rag.app.domain.valueobjects.DocumentReference;
 import com.rag.app.usecases.interfaces.AnswerGenerator;
 import com.rag.app.usecases.models.DocumentChunk;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;

@@ -1,6 +1,6 @@
 package com.rag.app.infrastructure.vector;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.List;
 

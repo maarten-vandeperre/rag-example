@@ -13,7 +13,10 @@ function App() {
   const [initError, setInitError] = useState(null);
   const apiUrl = process.env.REACT_APP_API_URL || '/api';
   const currentUserRole = process.env.REACT_APP_USER_ROLE || 'ADMIN';
-  const currentUserId = process.env.REACT_APP_USER_ID || '11111111-1111-1111-1111-111111111111';
+  const currentUserId = process.env.REACT_APP_USER_ID
+    || (currentUserRole === 'ADMIN'
+      ? '22222222-2222-2222-2222-222222222222'
+      : '11111111-1111-1111-1111-111111111111');
 
   useEffect(() => {
     initKeycloak()

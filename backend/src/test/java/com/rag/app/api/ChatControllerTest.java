@@ -20,8 +20,8 @@ import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import java.security.Principal;
 import java.time.Clock;
 import java.time.Instant;

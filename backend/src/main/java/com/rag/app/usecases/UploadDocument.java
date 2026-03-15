@@ -8,8 +8,8 @@ import com.rag.app.usecases.models.UploadDocumentInput;
 import com.rag.app.usecases.models.UploadDocumentOutput;
 import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

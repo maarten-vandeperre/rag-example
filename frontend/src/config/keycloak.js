@@ -7,14 +7,15 @@ const keycloakState = {
   login() {
     this.authenticated = true;
     this.token = 'dev-token';
+    const role = process.env.REACT_APP_USER_ROLE || 'ADMIN';
     this.tokenParsed = {
-      sub: process.env.REACT_APP_USER_ID || '22222222-2222-2222-2222-222222222222',
-      preferred_username: process.env.REACT_APP_DEV_USERNAME || 'jane.admin',
-      email: process.env.REACT_APP_DEV_EMAIL || 'jane.admin@example.com',
-      given_name: 'Jane',
-      family_name: 'Admin',
+      sub: process.env.REACT_APP_USER_ID || (role === 'ADMIN' ? '22222222-2222-2222-2222-222222222222' : '11111111-1111-1111-1111-111111111111'),
+      preferred_username: process.env.REACT_APP_DEV_USERNAME || (role === 'ADMIN' ? 'jane.admin' : 'john.doe'),
+      email: process.env.REACT_APP_DEV_EMAIL || (role === 'ADMIN' ? 'jane.admin@example.com' : 'john.doe@example.com'),
+      given_name: role === 'ADMIN' ? 'Jane' : 'John',
+      family_name: role === 'ADMIN' ? 'Admin' : 'Doe',
       realm_access: {
-        roles: [process.env.REACT_APP_USER_ROLE || 'ADMIN']
+        roles: [role]
       }
     };
   },

@@ -14,7 +14,7 @@ import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

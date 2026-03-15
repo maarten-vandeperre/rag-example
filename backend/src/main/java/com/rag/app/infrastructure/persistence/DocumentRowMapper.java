@@ -5,7 +5,7 @@ import com.rag.app.domain.valueobjects.DocumentMetadata;
 import com.rag.app.domain.valueobjects.DocumentStatus;
 import com.rag.app.domain.valueobjects.FileType;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;

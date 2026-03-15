@@ -3,8 +3,8 @@ package com.rag.app.infrastructure.document;
 import com.rag.app.domain.valueobjects.FileType;
 import com.rag.app.usecases.interfaces.DocumentContentExtractor;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 

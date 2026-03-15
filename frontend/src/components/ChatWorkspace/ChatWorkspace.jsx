@@ -5,7 +5,10 @@ import './ChatWorkspace.css';
 import ChatMessage from './ChatMessage';
 import QuestionInput from './QuestionInput';
 
-const DEFAULT_USER_ID = process.env.REACT_APP_DEFAULT_USER_ID || '11111111-1111-1111-1111-111111111111';
+const DEFAULT_USER_ID = process.env.REACT_APP_DEFAULT_USER_ID
+  || (process.env.REACT_APP_USER_ROLE === 'ADMIN'
+    ? '22222222-2222-2222-2222-222222222222'
+    : '11111111-1111-1111-1111-111111111111');
 const DEFAULT_TIMEOUT_MS = 20000;
 
 function currentTimeLabel() {

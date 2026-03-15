@@ -4,8 +4,8 @@ import com.rag.app.domain.entities.User;
 import com.rag.app.usecases.repositories.UserRepository;
 
 import javax.sql.DataSource;
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

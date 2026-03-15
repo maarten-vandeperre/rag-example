@@ -8,16 +8,20 @@ import com.rag.app.usecases.models.GetAdminProgressOutput;
 import com.rag.app.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+@ApplicationScoped
 public final class GetAdminProgress {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
 
+    @Inject
     public GetAdminProgress(DocumentRepository documentRepository, UserRepository userRepository) {
         this.documentRepository = Objects.requireNonNull(documentRepository, "documentRepository must not be null");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");

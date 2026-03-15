@@ -3,7 +3,7 @@ package com.rag.app.infrastructure.persistence;
 import com.rag.app.domain.entities.User;
 import com.rag.app.domain.valueobjects.UserRole;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;

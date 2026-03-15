@@ -110,8 +110,21 @@ wait_for_http() {
 
 initialize_weaviate_schema() {
   printf 'Initializing Weaviate schema...\n'
-  "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh" "${SCRIPT_DIR}/infrastructure/weaviate/dev-schema.json" >/dev/null
-  printf 'Weaviate schema ready\n'
+  if [ -f "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh" ]; then
+    chmod +x "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh"
+    if "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh"; then
+      printf 'Weaviate schema ready\n'
+    else
+      printf 'WARNING: Weaviate schema initialization failed, but continuing...\n'
+      printf 'You can manually initialize later with: ./infrastructure/weaviate/init-weaviate-dev.sh\n'
+      if [ -f "${SCRIPT_DIR}/infrastructure/weaviate/troubleshoot-weaviate.sh" ]; then
+        printf 'For diagnostics run: ./infrastructure/weaviate/troubleshoot-weaviate.sh\n'
+      fi
+    fi
+  else
+    printf 'WARNING: Weaviate initialization script not found, skipping schema setup\n'
+    printf 'Schema will need to be created manually later\n'
+  fi
 }
 
 start_optional_llm() {
@@ -139,7 +152,10 @@ wait_for_postgres
 
 printf 'Starting Weaviate...\n'
 run_compose up -d weaviate-dev
-wait_for_http 'Weaviate' "${WEAVIATE_URL:-http://localhost:${WEAVIATE_PORT:-8080}}/v1/meta" 30 3 weaviate-dev
+wait_for_http 'Weaviate' "${WEAVIATE_URL:-http://localhost:${WEAVIATE_PORT:-8080}}/v1/meta" 60 3 weaviate-dev
+# Additional wait for Weaviate to be fully initialized
+printf 'Waiting for Weaviate to be fully initialized...\n'
+sleep 10
 initialize_weaviate_schema
 
 printf 'Starting Keycloak...\n'

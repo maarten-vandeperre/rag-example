@@ -11,11 +11,14 @@ import com.rag.app.usecases.models.QueryDocumentsInput;
 import com.rag.app.usecases.models.QueryDocumentsOutput;
 import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
 
+@ApplicationScoped
 public final class QueryDocuments {
     private static final String NO_DOCUMENTS_MESSAGE = "No ready documents available for this query";
     private static final String NO_MATCHES_MESSAGE = "No relevant documents found for the question";
@@ -25,6 +28,14 @@ public final class QueryDocuments {
     private final SemanticSearch semanticSearch;
     private final AnswerGenerator answerGenerator;
     private final Clock clock;
+
+    @Inject
+    public QueryDocuments(UserRepository userRepository,
+                          DocumentRepository documentRepository,
+                          SemanticSearch semanticSearch,
+                          AnswerGenerator answerGenerator) {
+        this(userRepository, documentRepository, semanticSearch, answerGenerator, Clock.systemUTC());
+    }
 
     public QueryDocuments(UserRepository userRepository,
                           DocumentRepository documentRepository,

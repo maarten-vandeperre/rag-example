@@ -40,8 +40,8 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -363,6 +363,11 @@ final class IntegrationTestSupport {
         @Override
         public Path uploadedFile() {
             return path;
+        }
+
+        @Override
+        public jakarta.ws.rs.core.MultivaluedMap<String, String> getHeaders() {
+            return new jakarta.ws.rs.core.MultivaluedHashMap<>();
         }
     }
 }

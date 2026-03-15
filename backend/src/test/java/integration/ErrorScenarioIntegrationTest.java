@@ -8,7 +8,7 @@ import com.rag.app.usecases.models.ProcessDocumentOutput;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;

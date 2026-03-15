@@ -6,8 +6,8 @@ import com.rag.app.usecases.interfaces.VectorStore;
 import com.rag.app.usecases.models.DocumentChunk;
 import com.rag.app.usecases.repositories.DocumentRepository;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

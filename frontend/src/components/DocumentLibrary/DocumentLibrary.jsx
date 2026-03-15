@@ -4,7 +4,10 @@ import ApiClient from '../../services/ApiClient';
 import DocumentList from './DocumentList';
 import FileUpload, { validateFile } from './FileUpload';
 
-const DEFAULT_USER_ID = process.env.REACT_APP_DEFAULT_USER_ID || '11111111-1111-1111-1111-111111111111';
+const DEFAULT_USER_ID = process.env.REACT_APP_DEFAULT_USER_ID
+  || (process.env.REACT_APP_USER_ROLE === 'ADMIN'
+    ? '22222222-2222-2222-2222-222222222222'
+    : '11111111-1111-1111-1111-111111111111');
 
 function normalizeDocuments(payload) {
   const documents = Array.isArray(payload) ? payload : payload.documents || [];

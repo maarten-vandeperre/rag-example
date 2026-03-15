@@ -5,7 +5,7 @@ import com.rag.app.api.dto.UploadDocumentResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
