@@ -76,9 +76,9 @@ final class IntegrationTestSupport {
         userRepository.store(user(OTHER_USER_ID, UserRole.STANDARD));
         userRepository.store(user(ADMIN_USER_ID, UserRole.ADMIN));
 
-        UploadDocument uploadDocument = new UploadDocument(documentRepository, userRepository, clock);
         VectorStoreImpl vectorStore = new VectorStoreImpl(documentRepository, new TextChunker(), new EmbeddingGenerator());
         this.processDocument = new ProcessDocument(documentRepository, new DocumentContentExtractorImpl(), vectorStore);
+        UploadDocument uploadDocument = new UploadDocument(documentRepository, userRepository, this.processDocument, clock);
         QueryDocuments queryDocuments = new QueryDocuments(
             userRepository,
             documentRepository,
@@ -135,7 +135,7 @@ final class IntegrationTestSupport {
     }
 
     Response chat(UUID userId, String question, Integer timeoutMs) {
-        return chatController.query(new ChatQueryRequest(question, timeoutMs), securityContext(userId));
+        return chatController.query(new ChatQueryRequest(question, timeoutMs), userId.toString(), securityContext(userId));
     }
 
     byte[] loadResource(String path) throws IOException {

@@ -57,7 +57,7 @@ class ChatControllerTest {
         );
         ChatController controller = new ChatController(queryDocuments, DAEMON_EXECUTOR);
 
-        Response response = controller.query(new ChatQueryRequest("How do uploads work?", null), securityContext(userId));
+        Response response = controller.query(new ChatQueryRequest("How do uploads work?", null), userId.toString(), securityContext(userId));
 
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(200, response.getStatus());
@@ -79,7 +79,7 @@ class ChatControllerTest {
             Clock.systemUTC()
         ), DAEMON_EXECUTOR);
 
-        Response response = controller.query(new ChatQueryRequest("   ", null), securityContext(userId));
+        Response response = controller.query(new ChatQueryRequest("   ", null), userId.toString(), securityContext(userId));
 
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(400, response.getStatus());
@@ -98,7 +98,7 @@ class ChatControllerTest {
             Clock.fixed(Instant.parse("2026-03-13T18:00:00Z"), ZoneOffset.UTC)
         ), DAEMON_EXECUTOR);
 
-        Response response = controller.query(new ChatQueryRequest("Unknown topic", null), securityContext(userId));
+        Response response = controller.query(new ChatQueryRequest("Unknown topic", null), userId.toString(), securityContext(userId));
 
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(404, response.getStatus());
@@ -120,7 +120,7 @@ class ChatControllerTest {
         );
         ChatController controller = new ChatController(queryDocuments, DAEMON_EXECUTOR);
 
-        Response response = controller.query(new ChatQueryRequest("Slow question", 10), securityContext(userId));
+        Response response = controller.query(new ChatQueryRequest("Slow question", 10), userId.toString(), securityContext(userId));
 
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(408, response.getStatus());
@@ -140,7 +140,7 @@ class ChatControllerTest {
             Clock.systemUTC()
         ), DAEMON_EXECUTOR);
 
-        Response response = controller.query(new ChatQueryRequest("Will this fail?", null), securityContext(userId));
+        Response response = controller.query(new ChatQueryRequest("Will this fail?", null), userId.toString(), securityContext(userId));
 
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(500, response.getStatus());

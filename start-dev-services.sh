@@ -202,6 +202,8 @@ printf 'Backend authentication: DISABLED (development mode)\n'
 printf 'CORS headers: Configured for frontend development\n'
 printf 'Sample users: Admin (jane.admin) and Standard (john.doe) loaded\n'
 printf 'File uploads: PDF, Markdown, and plain text supported\n'
+printf 'Duplicate content: ALLOWED (development mode)\n'
+printf 'CDI beans: All REST controllers properly configured\n'
 
 printf '\nService Status:\n'
 run_compose ps

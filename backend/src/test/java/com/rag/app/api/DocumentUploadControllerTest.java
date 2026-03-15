@@ -7,7 +7,10 @@ import com.rag.app.domain.entities.Document;
 import com.rag.app.domain.entities.User;
 import com.rag.app.domain.valueobjects.DocumentStatus;
 import com.rag.app.domain.valueobjects.UserRole;
+import com.rag.app.usecases.ProcessDocument;
 import com.rag.app.usecases.UploadDocument;
+import com.rag.app.usecases.interfaces.DocumentContentExtractor;
+import com.rag.app.usecases.interfaces.VectorStore;
 import com.rag.app.usecases.models.FailedDocumentInfo;
 import com.rag.app.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.usecases.models.ProcessingStatistics;
@@ -35,6 +38,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class DocumentUploadControllerTest {
 
+    private static ProcessDocument createMockProcessDocument() {
+        DocumentContentExtractor mockExtractor = (content, fileType) -> "extracted text";
+        VectorStore mockVectorStore = (documentId, content) -> {};
+        return new ProcessDocument(new InMemoryDocumentRepository(), mockExtractor, mockVectorStore);
+    }
+
     @Test
     void shouldUploadValidDocument() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -42,7 +51,7 @@ class DocumentUploadControllerTest {
         userRepository.save(new User(userId, "uploader", "uploader@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T08:00:00Z"), true));
         DocumentUploadController controller = new DocumentUploadController(
-            new UploadDocument(new InMemoryDocumentRepository(), userRepository, Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)),
+            new UploadDocument(new InMemoryDocumentRepository(), userRepository, createMockProcessDocument(), Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)),
             Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)
         );
         UploadDocumentRequest request = new UploadDocumentRequest();
@@ -120,7 +129,7 @@ class DocumentUploadControllerTest {
         userRepository.save(new User(ACTIVE_USER_ID, "uploader", "uploader@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T08:00:00Z"), true));
         Clock fixedClock = Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC);
-        return new DocumentUploadController(new UploadDocument(new InMemoryDocumentRepository(), userRepository, fixedClock), fixedClock);
+        return new DocumentUploadController(new UploadDocument(new InMemoryDocumentRepository(), userRepository, createMockProcessDocument(), fixedClock), fixedClock);
     }
 
     private static Path writeTempFile(String fileName, byte[] content) throws Exception {

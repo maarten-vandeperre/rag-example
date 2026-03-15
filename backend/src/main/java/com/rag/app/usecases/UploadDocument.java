@@ -4,12 +4,14 @@ import com.rag.app.domain.entities.Document;
 import com.rag.app.domain.entities.User;
 import com.rag.app.domain.valueobjects.DocumentMetadata;
 import com.rag.app.domain.valueobjects.DocumentStatus;
+import com.rag.app.usecases.models.ProcessDocumentInput;
 import com.rag.app.usecases.models.UploadDocumentInput;
 import com.rag.app.usecases.models.UploadDocumentOutput;
 import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -23,16 +25,21 @@ import java.util.UUID;
 public final class UploadDocument {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
+    private final ProcessDocument processDocument;
     private final Clock clock;
+    
+    @ConfigProperty(name = "quarkus.profile", defaultValue = "prod")
+    String profile;
 
     @Inject
-    public UploadDocument(DocumentRepository documentRepository, UserRepository userRepository) {
-        this(documentRepository, userRepository, Clock.systemUTC());
+    public UploadDocument(DocumentRepository documentRepository, UserRepository userRepository, ProcessDocument processDocument) {
+        this(documentRepository, userRepository, processDocument, Clock.systemUTC());
     }
 
-    public UploadDocument(DocumentRepository documentRepository, UserRepository userRepository, Clock clock) {
+    public UploadDocument(DocumentRepository documentRepository, UserRepository userRepository, ProcessDocument processDocument, Clock clock) {
         this.documentRepository = Objects.requireNonNull(documentRepository, "documentRepository must not be null");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+        this.processDocument = Objects.requireNonNull(processDocument, "processDocument must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -63,6 +70,12 @@ public final class UploadDocument {
         }
 
         String contentHash = calculateContentHash(input.fileContent());
+        
+        // In development mode, make content hash unique to allow duplicate uploads
+        if ("dev".equals(profile)) {
+            contentHash = contentHash + "-" + Instant.now(clock).toEpochMilli();
+        }
+        
         if (documentRepository.findByContentHash(contentHash).isPresent()) {
             throw new IllegalArgumentException("document with identical content already exists");
         }
@@ -76,7 +89,19 @@ public final class UploadDocument {
         );
 
         Document savedDocument = documentRepository.save(document);
-        return new UploadDocumentOutput(savedDocument.documentId(), savedDocument.status(), "Document uploaded successfully");
+        
+        // Automatically trigger document processing
+        try {
+            processDocument.execute(new ProcessDocumentInput(savedDocument.documentId(), input.fileContent()));
+            return new UploadDocumentOutput(savedDocument.documentId(), DocumentStatus.PROCESSING, "Document uploaded and processing started");
+        } catch (Exception exception) {
+            // If processing fails, return the upload success but note the processing issue
+            String errorMessage = exception.getMessage();
+            if (exception.getCause() != null) {
+                errorMessage += " (Cause: " + exception.getCause().getMessage() + ")";
+            }
+            return new UploadDocumentOutput(savedDocument.documentId(), savedDocument.status(), "Document uploaded successfully, but processing failed: " + errorMessage);
+        }
     }
 
     private String calculateContentHash(byte[] fileContent) {

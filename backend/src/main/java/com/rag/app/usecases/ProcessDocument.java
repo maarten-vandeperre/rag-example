@@ -8,13 +8,17 @@ import com.rag.app.usecases.models.ProcessDocumentInput;
 import com.rag.app.usecases.models.ProcessDocumentOutput;
 import com.rag.app.usecases.repositories.DocumentRepository;
 
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.util.Objects;
 
+@ApplicationScoped
 public final class ProcessDocument {
     private final DocumentRepository documentRepository;
     private final DocumentContentExtractor documentContentExtractor;
     private final VectorStore vectorStore;
 
+    @Inject
     public ProcessDocument(DocumentRepository documentRepository,
                            DocumentContentExtractor documentContentExtractor,
                            VectorStore vectorStore) {

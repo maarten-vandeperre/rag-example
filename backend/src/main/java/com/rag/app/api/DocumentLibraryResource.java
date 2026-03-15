@@ -17,6 +17,7 @@ import com.rag.app.usecases.models.GetUserDocumentsOutput;
 import com.rag.app.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.usecases.models.ProcessingStatistics;
 
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -30,6 +31,7 @@ import java.util.UUID;
 
 @Path("/api")
 @Produces(MediaType.APPLICATION_JSON)
+@ApplicationScoped
 public class DocumentLibraryResource {
     private final GetUserDocuments getUserDocuments;
     private final GetAdminProgress getAdminProgress;

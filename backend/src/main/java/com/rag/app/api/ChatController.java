@@ -8,8 +8,10 @@ import com.rag.app.usecases.QueryDocuments;
 import com.rag.app.usecases.models.QueryDocumentsInput;
 import com.rag.app.usecases.models.QueryDocumentsOutput;
 
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -32,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 @Path("/api/chat")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@ApplicationScoped
 public class ChatController {
     private static final String NO_ANSWER_FOUND_MESSAGE = "no answer found";
     private static final String QUERY_TIMEOUT_MESSAGE = "Query exceeded the allowed response time";
@@ -52,9 +55,11 @@ public class ChatController {
 
     @POST
     @Path("/query")
-    public Response query(ChatQueryRequest request, @Context SecurityContext securityContext) {
+    public Response query(ChatQueryRequest request, 
+                         @HeaderParam("X-User-Id") String userIdHeader,
+                         @Context SecurityContext securityContext) {
         try {
-            UUID userId = extractUserId(securityContext);
+            UUID userId = extractUserId(userIdHeader, securityContext);
             ChatQueryRequest validatedRequest = validateRequest(request);
             int timeoutMs = validatedRequest.resolvedMaxResponseTimeMs();
 
@@ -96,7 +101,17 @@ public class ChatController {
         return request;
     }
 
-    private UUID extractUserId(SecurityContext securityContext) {
+    private UUID extractUserId(String userIdHeader, SecurityContext securityContext) {
+        // In development mode, use X-User-Id header if available
+        if (userIdHeader != null && !userIdHeader.isBlank()) {
+            try {
+                return UUID.fromString(userIdHeader);
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("X-User-Id header must be a valid UUID", exception);
+            }
+        }
+
+        // Fall back to SecurityContext for production mode
         if (securityContext == null) {
             throw new IllegalArgumentException("authenticated user is required");
         }
