@@ -16,6 +16,11 @@ function ensureUserId(options = {}) {
 }
 
 function validateFile(file) {
+  console.log('=== DocumentApiClient Validation ===');
+  console.log('File:', file);
+  console.log('SUPPORTED_EXTENSIONS:', SUPPORTED_EXTENSIONS);
+  console.log('MAX_FILE_SIZE_BYTES:', MAX_FILE_SIZE_BYTES);
+  
   if (!file) {
     throw new ApiError('Select a file before uploading.', {
       code: 'MISSING_FILE'
@@ -23,17 +28,25 @@ function validateFile(file) {
   }
 
   const extension = file.name?.split('.').pop()?.toLowerCase();
+  console.log('File name:', file.name);
+  console.log('Extracted extension:', extension);
+  console.log('Is extension supported:', SUPPORTED_EXTENSIONS.includes(extension));
+  
   if (!extension || !SUPPORTED_EXTENSIONS.includes(extension)) {
+    console.log('VALIDATION FAILED - Unsupported file type');
     throw new ApiError(`Supported file types: ${SUPPORTED_EXTENSIONS.join(', ')}.`, {
       code: 'UNSUPPORTED_FILE_TYPE'
     });
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
+    console.log('VALIDATION FAILED - File too large');
     throw new ApiError('The selected file exceeds the maximum upload size.', {
       code: 'FILE_TOO_LARGE'
     });
   }
+  
+  console.log('VALIDATION PASSED');
 }
 
 class DocumentApiClient {

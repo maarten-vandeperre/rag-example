@@ -89,7 +89,15 @@ function DocumentLibrary({ apiBaseUrl = process.env.REACT_APP_API_URL || '/api',
   };
 
   const handleUpload = async () => {
+    console.log('=== Upload Debug ===');
+    console.log('Selected file:', selectedFile);
+    console.log('File name:', selectedFile?.name);
+    console.log('File size:', selectedFile?.size);
+    console.log('File type:', selectedFile?.type);
+    
     const nextError = validateFile(selectedFile);
+    console.log('Validation error:', nextError);
+    
     if (nextError) {
       setValidationError(nextError);
       return;
@@ -101,6 +109,7 @@ function DocumentLibrary({ apiBaseUrl = process.env.REACT_APP_API_URL || '/api',
     setProgress(15);
 
     try {
+      console.log('Calling apiClient.uploadDocument...');
       const uploadRequest = apiClient.uploadDocument(selectedFile, ({ percent }) => {
         setProgress(percent);
       }, { userId });

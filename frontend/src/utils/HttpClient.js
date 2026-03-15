@@ -94,7 +94,13 @@ class HttpClient {
     const promise = new Promise((resolve, reject) => {
       xhr.open(options.method || 'POST', `${this.baseUrl}${path}`);
 
-      Object.entries(mergeHeaders(this.getDefaultHeaders({}), options.headers)).forEach(([key, value]) => {
+      // For FormData uploads, let the browser set Content-Type with boundary
+      const headers = mergeHeaders(this.getDefaultHeaders({}), options.headers);
+      Object.entries(headers).forEach(([key, value]) => {
+        // Skip Content-Type for FormData - browser will set it with proper boundary
+        if (options.body instanceof FormData && key.toLowerCase() === 'content-type') {
+          return;
+        }
         xhr.setRequestHeader(key, value);
       });
 
