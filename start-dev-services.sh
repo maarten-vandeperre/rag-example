@@ -108,6 +108,29 @@ wait_for_http() {
   exit 1
 }
 
+initialize_database() {
+  printf 'Checking and loading sample data...\n'
+  # Check if sample data already exists
+  if run_compose exec -T postgres-dev psql -U "${DB_USER:-rag_dev_user}" -d "${DB_NAME:-rag_app_dev}" -c "SELECT COUNT(*) FROM users WHERE user_id = '22222222-2222-2222-2222-222222222222';" 2>/dev/null | grep -q "1"; then
+    printf 'Sample data already loaded\n'
+  else
+    printf 'Loading essential users...\n'
+    # Load essential users directly via SQL to avoid schema conflicts
+    if run_compose exec -T postgres-dev psql -U "${DB_USER:-rag_dev_user}" -d "${DB_NAME:-rag_app_dev}" -c "
+      INSERT INTO users (user_id, username, email, first_name, last_name, role, keycloak_user_id) VALUES 
+      ('22222222-2222-2222-2222-222222222222', 'jane.admin', 'jane.admin@example.com', 'Jane', 'Admin', 'ADMIN', 'jane.admin'),
+      ('11111111-1111-1111-1111-111111111111', 'john.doe', 'john.doe@example.com', 'John', 'Doe', 'STANDARD', 'john.doe')
+      ON CONFLICT (user_id) DO NOTHING;
+    " >/dev/null 2>&1; then
+      printf 'Essential users loaded successfully\n'
+    else
+      printf 'WARNING: Failed to load essential users, but continuing...\n'
+      printf 'You can manually add them with:\n'
+      printf '  podman exec rag-postgres-dev psql -U %s -d %s -c "INSERT INTO users (user_id, username, email, first_name, last_name, role, keycloak_user_id) VALUES ('"'"'22222222-2222-2222-2222-222222222222'"'"', '"'"'jane.admin'"'"', '"'"'jane.admin@example.com'"'"', '"'"'Jane'"'"', '"'"'Admin'"'"', '"'"'ADMIN'"'"', '"'"'jane.admin'"'"')"\n' "${DB_USER:-rag_dev_user}" "${DB_NAME:-rag_app_dev}"
+    fi
+  fi
+}
+
 initialize_weaviate_schema() {
   printf 'Initializing Weaviate schema...\n'
   if [ -f "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh" ]; then
@@ -149,6 +172,7 @@ run_compose down --remove-orphans >/dev/null 2>&1 || true
 printf 'Starting PostgreSQL and Redis...\n'
 run_compose up -d postgres-dev redis-dev
 wait_for_postgres
+initialize_database
 
 printf 'Starting Weaviate...\n'
 run_compose up -d weaviate-dev
@@ -172,6 +196,12 @@ printf 'Redis:      redis://localhost:%s\n' "${REDIS_PORT:-6379}"
 if [ "${START_LLM:-false}" = "true" ]; then
   printf 'Ollama:     %s\n' "${OLLAMA_URL:-http://localhost:${OLLAMA_PORT:-11434}}"
 fi
+
+printf '\n=== Development Configuration ===\n'
+printf 'Backend authentication: DISABLED (development mode)\n'
+printf 'CORS headers: Configured for frontend development\n'
+printf 'Sample users: Admin (jane.admin) and Standard (john.doe) loaded\n'
+printf 'File uploads: PDF, Markdown, and plain text supported\n'
 
 printf '\nService Status:\n'
 run_compose ps

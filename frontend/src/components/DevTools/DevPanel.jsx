@@ -33,12 +33,22 @@ function DevPanel() {
           <div><strong>Environment:</strong> {process.env.REACT_APP_ENVIRONMENT}</div>
           <div><strong>Backend URL:</strong> {process.env.REACT_APP_BACKEND_URL}</div>
           <div><strong>Keycloak URL:</strong> {process.env.REACT_APP_KEYCLOAK_URL}</div>
+          <div><strong>Authenticated:</strong> {keycloak.authenticated ? 'Yes' : 'No'}</div>
+          <div><strong>Debug Mode:</strong> {process.env.REACT_APP_DEBUG_MODE}</div>
+          <div><strong>Supported File Types:</strong> {process.env.REACT_APP_SUPPORTED_FILE_TYPES}</div>
+          <div><strong>Max File Size:</strong> {process.env.REACT_APP_MAX_FILE_SIZE}</div>
           <pre>{JSON.stringify(backendHealth, null, 2)}</pre>
           <pre>{JSON.stringify(userInfo, null, 2)}</pre>
-          <div>{keycloak.token ? `${keycloak.token.slice(0, 20)}...` : 'No token'}</div>
+          <div>{keycloak.token ? `Token: ${keycloak.token.slice(0, 20)}...` : 'No token'}</div>
           <div className="dev-panel__actions">
-            <button type="button" onClick={() => keycloak.login()}>Login</button>
-            <button type="button" onClick={() => keycloak.logout()}>Logout</button>
+            <button type="button" onClick={() => {
+              keycloak.login();
+              setUserInfo(getUserInfo());
+            }}>Login</button>
+            <button type="button" onClick={() => {
+              keycloak.logout();
+              setUserInfo(getUserInfo());
+            }}>Logout</button>
             <button type="button" onClick={() => window.location.reload()}>Reload</button>
           </div>
         </div>

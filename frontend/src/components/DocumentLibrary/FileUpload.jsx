@@ -1,5 +1,8 @@
-const MAX_FILE_SIZE = 41943040;
-const ACCEPTED_EXTENSIONS = ['.pdf', '.md', '.txt'];
+const MAX_FILE_SIZE = Number(process.env.REACT_APP_MAX_FILE_SIZE || 41943040);
+const ACCEPTED_EXTENSIONS = (process.env.REACT_APP_SUPPORTED_FILE_TYPES || 'pdf,md,txt')
+  .split(',')
+  .map((value) => `.${value.trim().toLowerCase()}`)
+  .filter(Boolean);
 
 function validateFile(file) {
   if (!file) {

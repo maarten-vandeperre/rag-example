@@ -11,6 +11,8 @@ import com.rag.app.usecases.models.UploadDocumentOutput;
 import org.jboss.resteasy.reactive.MultipartForm;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -27,10 +29,12 @@ import java.util.UUID;
 
 @Path("/api/documents")
 @Produces(MediaType.APPLICATION_JSON)
+@ApplicationScoped
 public class DocumentUploadController {
     private final UploadDocument uploadDocument;
     private final Clock clock;
 
+    @Inject
     public DocumentUploadController(UploadDocument uploadDocument) {
         this(uploadDocument, Clock.systemUTC());
     }

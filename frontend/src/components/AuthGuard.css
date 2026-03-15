@@ -1,0 +1,43 @@
+.auth-guard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+}
+
+.auth-guard__content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.auth-guard__content h2 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.auth-guard__content p {
+  margin-bottom: 2rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.auth-guard__login-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.auth-guard__login-btn:hover {
+  background-color: #0056b3;
+}
+
+.auth-guard__login-btn:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
