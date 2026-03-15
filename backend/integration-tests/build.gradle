@@ -1,0 +1,28 @@
+plugins {
+    id 'java'
+}
+
+def javaRelease = providers.gradleProperty('javaVersion').get().toInteger()
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(javaRelease)
+    }
+}
+
+dependencies {
+    testImplementation project(':backend:shared-kernel')
+    testImplementation project(':backend:document-management')
+    testImplementation project(':backend:chat-system')
+    testImplementation project(':backend:user-management')
+    testImplementation project(':backend:application-integration')
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.assertj:assertj-core:3.26.3'
+    testImplementation 'org.awaitility:awaitility:4.2.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

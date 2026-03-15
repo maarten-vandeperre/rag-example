@@ -1,0 +1,37 @@
+plugins {
+    id 'java-library'
+}
+
+def javaRelease = providers.gradleProperty('javaVersion').get().toInteger()
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(javaRelease)
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+tasks.register('enforceModuleBoundaries') {
+    group = 'verification'
+    description = 'Ensures chat-system stays isolated from other application modules.'
+    doLast {
+        configurations.findAll { configuration -> configuration.canBeResolved || configuration.canBeConsumed || configuration.canBeDeclared }
+            .each { configuration ->
+                configuration.dependencies.withType(ProjectDependency).each { dependency ->
+                    throw new GradleException("Chat system module cannot depend on other application modules: ${dependency.dependencyProject.path}")
+                }
+            }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('enforceModuleBoundaries')
+}

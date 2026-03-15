@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">60% </span>
+                <span class="strong">56.25% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/10</span>
+                <span class='fraction'>9/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">85.71% </span>
+                <span class="strong">61.11% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>6/7</span>
+                <span class='fraction'>11/18</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">45.45% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/8</span>
+                <span class='fraction'>5/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">60% </span>
+                <span class="strong">56.25% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/10</span>
+                <span class='fraction'>9/16</span>
             </div>
         
             
@@ -114,7 +114,19 @@
 <a name='L49'></a><a href='#L49'>49</a>
 <a name='L50'></a><a href='#L50'>50</a>
 <a name='L51'></a><a href='#L51'>51</a>
-<a name='L52'></a><a href='#L52'>52</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -122,10 +134,22 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -169,17 +193,29 @@
 import DocumentApiClient from './DocumentApiClient';
 import HttpClient from '../utils/HttpClient';
 import { toApiError } from './ErrorHandler';
+import keycloak, { getAuthHeader, getUserInfo } from '../config/keycloak';
+&nbsp;
+export async function checkBackendHealth() {
+  const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:8081'}/q/health`);
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!response.ok) {
+<span class="cstat-no" title="statement not covered" >    throw new Error(`Health check failed with status ${response.status}`);</span>
+  }
+  return response.json();
+}
 &nbsp;
 class ApiClient {
   constructor(options = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
     const httpClient = new HttpClient({
       ...options,
+      getAuthToken: options.getAuthToken || (<span class="fstat-no" title="function not covered" ><span class="branch-1 cbranch-no" title="branch not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >keycloak.token)</span></span>,
+      getUserId: options.getUserId || (<span class="fstat-no" title="function not covered" ><span class="branch-1 cbranch-no" title="branch not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >getUserInfo()?.userId || process.env.REACT_APP_USER_ID || null)</span></span>,
       requestInterceptors: [
         ...(options.requestInterceptors || []),
         (config) =&gt; ({
           ...config,
           headers: {
             ...config.headers,
+            ...getAuthHeader(),
             'X-Debug-Client': 'rag-example-frontend'
           }
         })
@@ -223,7 +259,7 @@ export default ApiClient;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-03-14T16:23:35.360Z
+                at 2026-03-14T18:12:06.270Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

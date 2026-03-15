@@ -1,0 +1,2 @@
+* podman instead of docker
+* .gradle, frontend/.gradle, .idea, .vscode directories out of git

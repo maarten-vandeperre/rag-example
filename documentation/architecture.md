@@ -128,3 +128,70 @@ Frontend code lives in `frontend/src/`:
 - `components/AdminProgress/` for operations monitoring
 - `services/` for API clients and error handling
 - `utils/HttpClient.js` for shared request behavior
+
+## Modularization status
+
+The repository now contains extracted backend and frontend module scaffolding in addition to the legacy runtime.
+
+Backend extracted modules under `backend/`:
+
+- `document-management`
+- `chat-system`
+- `user-management`
+- `shared-kernel`
+- `application-integration`
+- `integration-tests`
+
+Frontend extracted feature structure under `frontend/src/modules/`:
+
+- feature folders and route-level wrappers
+- lint rules that discourage cross-module imports
+- lazy routing via `frontend/src/routes/AppRoutes.js`
+
+Important caveats:
+
+- the live Quarkus API still primarily runs from `backend/src/main/java/com/rag/app/`
+- the extracted backend modules are not the production runtime path yet
+- some adapters inside the new modules are placeholders, especially JDBC integrations
+- frontend module boundaries are partial and still wrap legacy `components/` and `services/`
+
+## New backend module responsibilities
+
+### `backend/document-management`
+
+- owns document upload, processing, document listing, and admin progress facades
+- keeps domain rules like supported file types and the `41943040` byte file-size limit
+- uses in-memory doubles in tests
+
+Current caveat: the placeholder JDBC repository in this module is not wired into the live backend.
+
+### `backend/chat-system`
+
+- owns query, chat history, vector storage, and semantic search abstractions
+- includes facade methods such as `queryDocuments`, `getChatHistory`, `storeDocumentVectors`, `removeDocumentVectors`, and `searchSimilarContent`
+
+Current caveat: this module is not the production `/api/chat/query` runtime path yet.
+
+### `backend/user-management`
+
+- centralizes user, role, and authorization use cases around `STANDARD` and `ADMIN`
+- includes simple auth and session-oriented test behavior
+
+Current caveat: real Keycloak-backed frontend/browser authentication is not implemented through this module.
+
+### `backend/shared-kernel`
+
+- provides shared concepts such as `EntityId`, `Timestamp`, `Email`, `FileSize`, `DomainEvent`, and `ValidationException`
+
+Current caveat: the shared kernel exists, but adoption across all feature modules is still incomplete.
+
+### `backend/application-integration`
+
+- contains `ApplicationOrchestrator`, event bus abstractions, integration events, and plain Java controllers for cross-module coordination
+
+Current caveat: this layer is scaffolding and orchestration code, not Quarkus-wired runtime integration.
+
+### `backend/integration-tests`
+
+- provides cross-module compatibility and workflow tests
+- runs with fixtures and stubs rather than full HTTP/database runtime integration

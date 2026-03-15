@@ -2,18 +2,11 @@
 set -eu
 
 WEAVIATE_URL="${WEAVIATE_URL:-http://weaviate:8080}"
-SCHEMA_FILE="${SCHEMA_FILE:-/schema/weaviate-schema.json}"
+SCHEMA_FILE="${SCHEMA_FILE:-/schema/dev-schema.json}"
 
 until curl -fsS "${WEAVIATE_URL}/v1/.well-known/ready" >/dev/null; do
   sleep 2
 done
-
-CLASS_NAME=$(sed -n 's/.*"class"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${SCHEMA_FILE}" | head -n 1)
-
-if [ -z "${CLASS_NAME}" ]; then
-  echo "Unable to determine schema class name"
-  exit 1
-fi
 
 HTTP_CODE=$(curl -sS -o /tmp/weaviate-schema-response.json -w "%{http_code}" \
   -X POST "${WEAVIATE_URL}/v1/schema" \

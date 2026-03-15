@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-printf '=== RAG Application Development Environment Setup ===\n'
+printf '=== RAG Application Development Environment Setup (Java 25) ===\n'
 
 JAVA_CMD="java"
 if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
@@ -11,12 +11,12 @@ fi
 if command -v "$JAVA_CMD" >/dev/null 2>&1; then
   JAVA_VERSION=$($JAVA_CMD -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '.' '{print $1}')
   printf 'Java version detected: %s\n' "$JAVA_VERSION"
-  if [ "$JAVA_VERSION" != "17" ]; then
-    printf 'ERROR: Java 17 is required, but found Java %s\n' "$JAVA_VERSION"
+  if [ "$JAVA_VERSION" != "25" ]; then
+    printf 'ERROR: Java 25 is required, but found Java %s\n' "$JAVA_VERSION"
     exit 1
   fi
 else
-  printf 'ERROR: Java not found. Please install Java 17.\n'
+  printf 'ERROR: Java not found. Please install Java 25.\n'
   exit 1
 fi
 

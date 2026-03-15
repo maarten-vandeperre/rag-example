@@ -15,4 +15,17 @@ dependencyResolutionManagement {
 rootProject.name = 'rag-example'
 
 include 'backend'
+include 'backend:shared-kernel'
+include 'backend:document-management'
+include 'backend:chat-system'
+include 'backend:user-management'
+include 'backend:application-integration'
+include 'backend:integration-tests'
 include 'frontend'
+
+project(':backend:shared-kernel').projectDir = file('backend/shared-kernel')
+project(':backend:document-management').projectDir = file('backend/document-management')
+project(':backend:chat-system').projectDir = file('backend/chat-system')
+project(':backend:user-management').projectDir = file('backend/user-management')
+project(':backend:application-integration').projectDir = file('backend/application-integration')
+project(':backend:integration-tests').projectDir = file('backend/integration-tests')

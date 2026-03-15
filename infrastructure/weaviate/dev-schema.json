@@ -1,0 +1,125 @@
+{
+  "classes": [
+    {
+      "class": "DocumentChunk",
+      "description": "A chunk of text from an uploaded document for semantic search",
+      "vectorizer": "none",
+      "vectorIndexType": "hnsw",
+      "vectorIndexConfig": {
+        "distance": "cosine",
+        "maxConnections": 64,
+        "efConstruction": 128,
+        "dynamicEfMin": 100,
+        "dynamicEfMax": 500,
+        "dynamicEfFactor": 8,
+        "vectorCacheMaxObjects": 100000
+      },
+      "properties": [
+        {
+          "name": "documentId",
+          "dataType": ["text"],
+          "description": "ID of the parent document",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "chunkIndex",
+          "dataType": ["int"],
+          "description": "Index of this chunk within the document",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "textContent",
+          "dataType": ["text"],
+          "description": "The actual text content of the chunk",
+          "indexFilterable": false,
+          "indexSearchable": true,
+          "tokenization": "word"
+        },
+        {
+          "name": "uploadedBy",
+          "dataType": ["text"],
+          "description": "User ID who uploaded the document",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "fileName",
+          "dataType": ["text"],
+          "description": "Original filename of the document",
+          "indexFilterable": true,
+          "indexSearchable": true
+        },
+        {
+          "name": "fileType",
+          "dataType": ["text"],
+          "description": "Type of the source file",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "createdAt",
+          "dataType": ["date"],
+          "description": "When this chunk was created",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "chunkSize",
+          "dataType": ["int"],
+          "description": "Size of the chunk in characters",
+          "indexFilterable": true,
+          "indexSearchable": false
+        }
+      ]
+    },
+    {
+      "class": "UserQuery",
+      "description": "User queries for analytics and improvement",
+      "vectorizer": "none",
+      "vectorIndexType": "hnsw",
+      "vectorIndexConfig": {
+        "distance": "cosine"
+      },
+      "properties": [
+        {
+          "name": "userId",
+          "dataType": ["text"],
+          "description": "ID of the user who made the query",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "queryText",
+          "dataType": ["text"],
+          "description": "The actual query text",
+          "indexFilterable": false,
+          "indexSearchable": true,
+          "tokenization": "word"
+        },
+        {
+          "name": "timestamp",
+          "dataType": ["date"],
+          "description": "When the query was made",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "responseTime",
+          "dataType": ["int"],
+          "description": "Response time in milliseconds",
+          "indexFilterable": true,
+          "indexSearchable": false
+        },
+        {
+          "name": "foundResults",
+          "dataType": ["boolean"],
+          "description": "Whether relevant results were found",
+          "indexFilterable": true,
+          "indexSearchable": false
+        }
+      ]
+    }
+  ]
+}

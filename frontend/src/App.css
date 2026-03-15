@@ -54,6 +54,155 @@ input {
   color: #31435f;
 }
 
+.workspace-layout {
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.workspace-layout__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto 1.5rem;
+}
+
+.workspace-layout__content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.workspace-layout__eyebrow {
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.75rem;
+  color: #9a3412;
+  margin-bottom: 0.4rem;
+}
+
+.workspace-layout__header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.workspace-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.workspace-nav a {
+  text-decoration: none;
+  color: #10233f;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(16, 35, 63, 0.08);
+}
+
+.workspace-nav a.active {
+  background: linear-gradient(90deg, #0369a1, #0f766e);
+  color: #fff;
+}
+
+.module-spinner,
+.module-error-boundary,
+.profile-card {
+  border: 1px solid rgba(16, 35, 63, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 80px rgba(46, 73, 109, 0.12);
+  border-radius: 24px;
+  padding: 1.5rem;
+}
+
+.module-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.module-spinner__dot {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #14b8a6);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.profile-card dl {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.profile-card dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.profile-card dd {
+  margin: 0.2rem 0 0;
+  font-weight: 700;
+}
+
+.app-loading,
+.app-dev-warning,
+.dev-panel {
+  border: 1px solid rgba(16, 35, 63, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(46, 73, 109, 0.12);
+}
+
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.app-dev-warning {
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  color: #9a3412;
+}
+
+.dev-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  padding: 0.75rem;
+  max-width: 360px;
+}
+
+.dev-panel__content {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.dev-panel__content pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.dev-panel__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@keyframes pulse {
+  0%,
+  100% { opacity: 0.45; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 .library-hero {
   display: flex;
   justify-content: space-between;
@@ -311,6 +460,11 @@ input {
 
   .admin-shell {
     padding: 1.5rem;
+  }
+
+  .workspace-layout__header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .library-hero,

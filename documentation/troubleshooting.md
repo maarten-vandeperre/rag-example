@@ -115,6 +115,63 @@ Today the backend uses:
 
 This means infrastructure health can be green even when semantic search behavior does not reflect a real external vector database or model.
 
+## Native dev environment problems
+
+### Podman service stack is unhealthy
+
+Checks:
+
+- run `./status-dev-services.sh`
+- run `./troubleshoot-dev-services.sh` for port, log, and connectivity diagnostics
+- confirm `.env.dev` values match the expected local ports
+- verify PostgreSQL `5432`, Weaviate `8080`, Keycloak `8180`, Redis `6379`, and Ollama `11434` are free
+
+The service scripts now support `podman-compose`, `docker-compose`, and `docker compose`, so verify which runtime was selected before debugging container state.
+
+### Startup fails before services become ready
+
+Checks:
+
+- `./start-dev-services.sh` now waits for PostgreSQL, Weaviate, and Keycloak readiness before reporting success
+- if a readiness check fails, inspect the service logs printed by the script first
+- verify the required bootstrap files exist, especially the Weaviate schema files and Keycloak realm import file
+
+Useful commands:
+
+```bash
+./status-dev-services.sh
+./troubleshoot-dev-services.sh
+./stop-dev-services.sh --clean
+./start-dev-services.sh
+```
+
+### Keycloak login expectations do not match the UI
+
+Checks:
+
+- Keycloak realm setup exists for service integration and backend OIDC configuration
+- the frontend currently uses a dev auth stub in `frontend/src/config/keycloak.js`
+- in debug mode the frontend auto-logs in with a fake `dev-token` and defaults to an admin role
+
+So docs and tests should treat browser auth as stubbed, not as a full live Keycloak login flow.
+
+### Weaviate sample data gives unrealistic search behavior
+
+Checks:
+
+- sample vectors loaded by `infrastructure/weaviate/load-sample-data.sh` are smoke-test data only
+- sample vectors are 10-dimensional, while backend dev config declares `app.vector.dimension=384`
+
+Use the sample data to verify the dev environment, not to benchmark real retrieval quality.
+
+### Ollama appears down during local setup
+
+Checks:
+
+- Ollama is optional in the dev compose stack
+- it starts only when `START_LLM=true`
+- if not enabled, an unreachable Ollama endpoint does not mean the core dev stack failed
+
 ## Test failures
 
 Useful locations:

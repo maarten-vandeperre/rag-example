@@ -43,7 +43,7 @@ tasks.register('dev', com.github.gradle.node.npm.task.NpmTask) {
     group = 'application'
     description = 'Starts the React development server.'
     dependsOn tasks.named('npmInstall')
-    npmCommand = ['start']
+    npmCommand = ['run', 'start:dev']
 }
 
 tasks.register('test', com.github.gradle.node.npm.task.NpmTask) {
@@ -71,7 +71,7 @@ tasks.register('lint', com.github.gradle.node.npm.task.NpmTask) {
     group = 'verification'
     description = 'Runs ESLint for the frontend source tree.'
     dependsOn tasks.named('npmInstall')
-    npmCommand = ['run', 'lint']
+    npmCommand = ['run', 'lint:all']
 }
 
 tasks.register('buildProd', com.github.gradle.node.npm.task.NpmTask) {
@@ -165,6 +165,13 @@ tasks.register('verify') {
     dependsOn tasks.named('buildProd')
     dependsOn tasks.named('analyzeBuild')
     dependsOn tasks.named('verifyBuild')
+}
+
+tasks.register('testDevIntegration', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'verification'
+    description = 'Tests frontend integration with local development services.'
+    dependsOn tasks.named('npmInstall')
+    npmCommand = ['run', 'test:dev']
 }
 
 tasks.named('clean') {

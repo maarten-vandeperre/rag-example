@@ -36,6 +36,10 @@ dependencies {
     implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
     implementation 'io.quarkus:quarkus-jdbc-postgresql'
     implementation 'io.quarkus:quarkus-smallrye-health'
+    implementation 'io.quarkus:quarkus-oidc'
+    implementation 'io.quarkus:quarkus-redis-client'
+    implementation 'io.quarkus:quarkus-smallrye-openapi'
+    implementation 'io.quarkus:quarkus-micrometer-registry-prometheus'
     implementation "org.apache.pdfbox:pdfbox:${pdfboxVersion}"
 
     testImplementation 'io.quarkus:quarkus-junit5'
@@ -47,6 +51,26 @@ tasks.register('dev') {
     group = 'application'
     description = 'Runs the backend in Quarkus development mode.'
     dependsOn tasks.named('quarkusDev')
+    doFirst {
+        logger.lifecycle('Starting RAG Backend in development mode...')
+        logger.lifecycle('Make sure supporting services are running: ./start-dev-services.sh')
+    }
+}
+
+tasks.register('devDebug') {
+    group = 'application'
+    description = 'Runs the backend in development mode with remote debugging enabled.'
+    doFirst {
+        System.setProperty('debug', '5005')
+        logger.lifecycle('Starting Quarkus development mode with debug port 5005...')
+    }
+    finalizedBy tasks.named('quarkusDev')
+}
+
+tasks.register('testDevIntegration', Exec) {
+    group = 'verification'
+    description = 'Tests backend integration with local development services.'
+    commandLine './test-dev-integration.sh'
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -142,7 +166,7 @@ tasks.register('unitTest', Test) {
 }
 
 jacoco {
-    toolVersion = '0.8.12'
+    toolVersion = '0.8.13'
 }
 
 tasks.named('jacocoTestReport') {

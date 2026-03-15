@@ -8,15 +8,20 @@
     "jest-junit": "16.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-router-dom": "^6.28.1",
     "react-scripts": "5.0.1",
     "typescript": "4.9.5"
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:dev": "./start-dev.sh",
     "build": "react-scripts build",
     "build:docker": "REACT_APP_API_URL=/api react-scripts build",
     "test": "react-scripts test --watch=false",
-    "lint": "eslint src --ext .js,.jsx"
+    "test:dev": "./test-dev-integration.sh",
+    "lint": "eslint src --ext .js,.jsx",
+    "lint:modules": "eslint --no-eslintrc --parser-options '{\"ecmaVersion\":2022,\"sourceType\":\"module\",\"ecmaFeatures\":{\"jsx\":true}}' --env browser --env es2022 --rulesdir eslint-rules src/modules --ext .js,.jsx --rule 'no-cross-module-imports:error'",
+    "lint:all": "npm run lint && npm run lint:modules"
   },
   "browserslist": {
     "production": [

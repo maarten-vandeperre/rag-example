@@ -19,6 +19,8 @@ The root Gradle build in `build.gradle` manages two subprojects:
 ./gradlew testAllWithReport
 ./gradlew buildWorkspace
 ./gradlew packageRelease
+./gradlew :backend:integration-tests:test
+./gradlew :frontend:lint
 ```
 
 ## Backend Gradle tasks
@@ -41,6 +43,14 @@ What they do:
 - `integrationTest` runs tests tagged `integration`
 - `packageBackend` builds the classes JAR and fat JAR
 - `verifyBuild` checks both backend artifacts exist
+
+Modular backend validation also includes:
+
+```bash
+./gradlew :backend:integration-tests:test
+```
+
+This suite covers cross-module workflow, boundary, event, health, and compatibility checks using fixtures and stubs.
 
 Example:
 
@@ -67,6 +77,7 @@ Notes:
 - Node.js 18 is recommended and checked during install
 - frontend tests emit coverage plus JUnit XML output
 - `verifyBuild` checks that `build/index.html` exists
+- `npm run lint:all` enforces the newer frontend module-boundary rules
 
 ## Workspace orchestration tasks
 
@@ -124,6 +135,37 @@ Notes:
 - the test runner invokes nested Gradle commands with `--no-parallel` and `--max-workers=1` for stability
 - release archive assertions locate artifacts dynamically instead of relying on hash-specific asset names
 - the development-mode coverage currently verifies task wiring, not a long-running live startup session
+
+## Native development commands
+
+Supporting services:
+
+```bash
+./start-dev-services.sh
+./status-dev-services.sh
+./troubleshoot-dev-services.sh
+./stop-dev-services.sh
+```
+
+Notes:
+
+- the lifecycle scripts support `podman-compose`, `docker-compose`, and `docker compose`
+- `./stop-dev-services.sh --clean` removes persisted local dev volumes
+
+Backend native dev:
+
+```bash
+cd backend && ./start-dev.sh
+cd backend && ./test-dev-integration.sh
+```
+
+Frontend native dev:
+
+```bash
+cd frontend && ./start-dev.sh
+cd frontend && npm run start:dev
+cd frontend && npm run test:dev
+```
 
 ## Test reporting
 

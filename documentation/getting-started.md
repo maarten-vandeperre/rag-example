@@ -17,7 +17,7 @@ Important current behavior:
 
 ## Prerequisites
 
-- Java 17
+- Java 25
 - Node.js 18+
 - Docker Compose or Podman Compose
 
@@ -45,9 +45,53 @@ setup.bat
 
 The setup script:
 
-- verifies Java 17 and Node.js 18+
+- verifies Java 25 and Node.js 18+
 - runs `./gradlew healthCheck`
 - installs frontend dependencies with `:frontend:npmInstall`
+
+## Native dev environment with Podman services
+
+For day-to-day work, the repository also supports a hybrid local setup where infrastructure runs in containers and the apps run natively.
+
+The dev service scripts support `podman-compose`, `docker-compose`, and `docker compose`.
+
+Start supporting services only:
+
+```bash
+./start-dev-services.sh
+./status-dev-services.sh
+./troubleshoot-dev-services.sh
+```
+
+This uses `docker-compose.dev.yml` plus `.env.dev` to start:
+
+- PostgreSQL on `5432`
+- Weaviate on `8080`
+- Keycloak on `8180`
+- Redis on `6379`
+- Ollama on `11434` when `START_LLM=true`
+
+Startup order is managed automatically:
+
+1. PostgreSQL and Redis
+2. Weaviate
+3. Weaviate schema bootstrap
+4. Keycloak
+5. optional Ollama
+
+Then start the apps separately:
+
+```bash
+cd backend && ./start-dev.sh
+cd frontend && ./start-dev.sh
+```
+
+Native dev URLs:
+
+- frontend: `http://localhost:3000`
+- backend API: `http://localhost:8081/api`
+- Swagger UI: `http://localhost:8081/q/swagger-ui`
+- Keycloak admin: `http://localhost:8180/admin`
 
 ## Start the local infrastructure stack
 
@@ -113,6 +157,19 @@ LLM_MODEL=tinyllama
 CORS_ORIGINS=http://localhost:3000
 ```
 
+Native dev defaults from `.env.dev` and `backend/src/main/resources/application-dev.properties`:
+
+```properties
+DB_NAME=rag_app_dev
+DB_USER=rag_dev_user
+DB_PASSWORD=rag_dev_password
+WEAVIATE_URL=http://localhost:8080
+KEYCLOAK_URL=http://localhost:8180
+BACKEND_PORT=8081
+FRONTEND_PORT=3000
+LLM_MODEL=tinyllama
+```
+
 Frontend defaults from `docker-compose.yml`:
 
 ```properties
@@ -129,6 +186,14 @@ REACT_APP_SUPPORTED_FILE_TYPES=pdf,md,txt
 4. Open `http://localhost:3000`
 5. Upload a `.pdf`, `.md`, or `.txt` file smaller than 40 MB
 6. Query the backend API or embed the chat workspace component
+
+Example native dev session:
+
+1. Run `./start-dev-services.sh`
+2. Run `cd backend && ./start-dev.sh`
+3. Run `cd frontend && ./start-dev.sh`
+4. Open `http://localhost:3000`
+5. Use the dev auth stub or seeded Keycloak users for service checks
 
 ## Health checks
 

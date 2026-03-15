@@ -1,0 +1,283 @@
+{
+  "realm": "rag-app-dev",
+  "displayName": "RAG Application Development",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 30,
+  "defaultSignatureAlgorithm": "RS256",
+  "revokeRefreshToken": false,
+  "refreshTokenMaxReuse": 0,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespanEnabled": false,
+  "offlineSessionMaxLifespan": 5184000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "roles": {
+    "realm": [
+      {
+        "name": "STANDARD",
+        "description": "Standard user role - can access own documents",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "rag-app-dev"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Admin user role - can access all documents and admin functions",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "rag-app-dev"
+      }
+    ]
+  },
+  "groups": [],
+  "requiredCredentials": [
+    "password"
+  ],
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "otpSupportedApplications": [
+    "FreeOTP",
+    "Google Authenticator"
+  ],
+  "clients": [
+    {
+      "clientId": "rag-app-backend",
+      "name": "RAG Application Backend",
+      "description": "Backend API client for service-to-service communication",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "backend-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "3600",
+        "client.secret.creation.time": "1640995200",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "role_list",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "webOrigins": [
+        "http://localhost:8081"
+      ],
+      "redirectUris": [
+        "http://localhost:8081/*"
+      ]
+    },
+    {
+      "clientId": "rag-app-frontend",
+      "name": "RAG Application Frontend",
+      "description": "Frontend client for user authentication",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "role_list",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:3000/auth/callback"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for add user roles to the access token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "${rolesScopeConsentText}"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "john.doe",
+      "email": "john.doe@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "STANDARD"
+      ],
+      "attributes": {
+        "department": [
+          "Engineering"
+        ],
+        "employee_id": [
+          "EMP001"
+        ]
+      }
+    },
+    {
+      "username": "jane.admin",
+      "email": "jane.admin@example.com",
+      "firstName": "Jane",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ],
+      "attributes": {
+        "department": [
+          "IT"
+        ],
+        "employee_id": [
+          "EMP002"
+        ]
+      }
+    },
+    {
+      "username": "test.user",
+      "email": "test.user@example.com",
+      "firstName": "Test",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "STANDARD"
+      ],
+      "attributes": {
+        "department": [
+          "QA"
+        ],
+        "employee_id": [
+          "EMP003"
+        ]
+      }
+    }
+  ],
+  "scopeMappings": [],
+  "clientScopeMappings": {},
+  "protocolMappers": [],
+  "identityProviders": [],
+  "identityProviderMappers": [],
+  "browserFlow": "browser",
+  "registrationFlow": "registration",
+  "directGrantFlow": "direct grant",
+  "resetCredentialsFlow": "reset credentials",
+  "clientAuthenticationFlow": "clients",
+  "dockerAuthenticationFlow": "docker auth",
+  "attributes": {
+    "frontendUrl": "http://localhost:8180",
+    "adminEventsEnabled": "true",
+    "adminEventsDetailsEnabled": "true"
+  },
+  "keycloakVersion": "23.0.0"
+}
