@@ -1,0 +1,104 @@
+.tabList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tab,
+.retryButton {
+  font: inherit;
+}
+
+.tab {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.tab:hover,
+.tab:focus-visible {
+  outline: none;
+  border-color: rgba(43, 89, 108, 0.35);
+}
+
+.tabSelected {
+  background: rgba(223, 235, 240, 0.92);
+  border-color: rgba(43, 89, 108, 0.45);
+}
+
+.tabDisabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: rgba(43, 89, 108, 0.12);
+  color: #2b596c;
+  font-weight: 700;
+}
+
+.meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.title,
+.stateTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.subtitle,
+.stateMessage,
+.warning {
+  color: #475569;
+}
+
+.warning {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.stateCard,
+.errorCard {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.errorCard {
+  background: rgba(254, 242, 242, 0.96);
+  border-color: rgba(220, 38, 38, 0.18);
+}
+
+.stateTitle,
+.stateMessage {
+  margin: 0;
+}
+
+.retryButton {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 0.95rem;
+  background: #2b596c;
+  color: #f8fafc;
+  cursor: pointer;
+}

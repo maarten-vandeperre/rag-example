@@ -1,0 +1,157 @@
+.viewerShell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.metaBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.documentTitle,
+.documentMeta,
+.stateTitle,
+.stateMessage {
+  margin: 0;
+}
+
+.documentTitle,
+.stateTitle {
+  color: #0f172a;
+}
+
+.documentMeta,
+.stateMessage,
+.viewerHint,
+.searchSummary {
+  color: #475569;
+}
+
+.searchBar {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.searchLabel {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.searchControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.searchInput {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  font: inherit;
+}
+
+.searchButton,
+.actionButton,
+.secondaryButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.searchButton,
+.actionButton {
+  background: #2b596c;
+  color: #f8fafc;
+}
+
+.secondaryButton {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.viewerSurface,
+.stateCard,
+.errorCard {
+  min-height: 0;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.errorCard {
+  background: rgba(254, 242, 242, 0.96);
+  border-color: rgba(220, 38, 38, 0.18);
+}
+
+.errorActions,
+.viewerHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.viewerType {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(43, 89, 108, 0.12);
+  color: #2b596c;
+  font-weight: 700;
+}
+
+.textViewport {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.textContent {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+  line-height: 1.7;
+  color: #0f172a;
+}
+
+.textContent mark[data-highlight='snippet'] {
+  background: rgba(253, 224, 71, 0.55);
+  border-radius: 4px;
+}
+
+.textContent :global(.search-highlight) {
+  background: rgba(125, 211, 252, 0.45);
+  border-radius: 4px;
+}
+
+.textContent :global(.search-highlight-active) {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+@media (max-width: 720px) {
+  .viewerShell {
+    padding: 1rem;
+  }
+
+  .searchControls,
+  .errorActions,
+  .viewerHeader {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+}

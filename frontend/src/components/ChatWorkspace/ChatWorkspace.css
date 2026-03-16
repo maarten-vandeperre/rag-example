@@ -32,7 +32,7 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 0.75rem;
-  color: #0f766e;
+  color: #2b596c;
   margin-bottom: 0.75rem;
 }
 
@@ -63,12 +63,17 @@
 
 .chat-message-user {
   margin-left: auto;
-  background: linear-gradient(140deg, #0f766e 0%, #115e59 100%);
+  background: linear-gradient(140deg, #2b596c 0%, #1f4351 100%);
   color: #f8fafc;
 }
 
 .chat-message-assistant {
-  background: #fffaf2;
+  background: #f4f8fa;
+}
+
+.chat-message-selected {
+  border-color: rgba(43, 89, 108, 0.35);
+  box-shadow: 0 24px 80px rgba(43, 89, 108, 0.14);
 }
 
 .chat-message-header {
@@ -92,10 +97,27 @@
   line-height: 1.6;
 }
 
+.chat-message-body-interactive {
+  cursor: pointer;
+  border-radius: 14px;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.chat-message-body-interactive:hover,
+.chat-message-body-interactive:focus-visible {
+  background: rgba(43, 89, 108, 0.08);
+  box-shadow: 0 0 0 3px rgba(43, 89, 108, 0.12);
+  outline: none;
+}
+
+.chat-message-body-interactive:active {
+  transform: translateY(1px);
+}
+
 .chat-loading {
   margin-top: 0.85rem;
   font-size: 0.9rem;
-  color: #0f766e;
+  color: #2b596c;
 }
 
 .reference-list {
@@ -111,7 +133,7 @@
   border-radius: 16px;
   color: inherit;
   text-decoration: none;
-  background: rgba(219, 234, 254, 0.65);
+  background: rgba(225, 237, 242, 0.85);
 }
 
 .reference-name {
@@ -158,8 +180,8 @@
   border-radius: 18px;
   padding: 0 1.2rem;
   min-width: 110px;
-  background: linear-gradient(90deg, #92400e, #b45309);
-  color: #fff7ed;
+  background: linear-gradient(90deg, #2b596c, #1f4351);
+  color: #f3f8fa;
   font-weight: 700;
   cursor: pointer;
 }
@@ -206,4 +228,5 @@
   .question-footer {
     flex-direction: column;
   }
+
 }

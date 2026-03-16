@@ -38,20 +38,21 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class DocumentUploadControllerTest {
 
-    private static ProcessDocument createMockProcessDocument() {
+    private static ProcessDocument createMockProcessDocument(DocumentRepository documentRepository) {
         DocumentContentExtractor mockExtractor = (content, fileType) -> "extracted text";
         VectorStore mockVectorStore = (documentId, content) -> {};
-        return new ProcessDocument(new InMemoryDocumentRepository(), mockExtractor, mockVectorStore);
+        return new ProcessDocument(documentRepository, mockExtractor, mockVectorStore);
     }
 
     @Test
     void shouldUploadValidDocument() throws Exception {
         UUID userId = UUID.randomUUID();
+        InMemoryDocumentRepository documentRepository = new InMemoryDocumentRepository();
         InMemoryUserRepository userRepository = new InMemoryUserRepository();
         userRepository.save(new User(userId, "uploader", "uploader@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T08:00:00Z"), true));
         DocumentUploadController controller = new DocumentUploadController(
-            new UploadDocument(new InMemoryDocumentRepository(), userRepository, createMockProcessDocument(), Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)),
+            new UploadDocument(documentRepository, userRepository, createMockProcessDocument(documentRepository), Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)),
             Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)
         );
         UploadDocumentRequest request = new UploadDocumentRequest();
@@ -64,8 +65,8 @@ class DocumentUploadControllerTest {
         UploadDocumentResponse body = assertInstanceOf(UploadDocumentResponse.class, response.getEntity());
         assertNotNull(body.documentId());
         assertEquals("guide.pdf", body.fileName());
-        assertEquals("UPLOADED", body.status());
-        assertEquals("Document uploaded successfully", body.message());
+        assertEquals("PROCESSING", body.status());
+        assertEquals("Document uploaded and processing started", body.message());
         assertEquals(Instant.parse("2026-03-13T10:30:00Z"), body.uploadedAt());
     }
 
@@ -125,11 +126,12 @@ class DocumentUploadControllerTest {
     private static final UUID ACTIVE_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private static DocumentUploadController controllerWithActiveUser() {
+        InMemoryDocumentRepository documentRepository = new InMemoryDocumentRepository();
         InMemoryUserRepository userRepository = new InMemoryUserRepository();
         userRepository.save(new User(ACTIVE_USER_ID, "uploader", "uploader@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T08:00:00Z"), true));
         Clock fixedClock = Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC);
-        return new DocumentUploadController(new UploadDocument(new InMemoryDocumentRepository(), userRepository, createMockProcessDocument(), fixedClock), fixedClock);
+        return new DocumentUploadController(new UploadDocument(documentRepository, userRepository, createMockProcessDocument(documentRepository), fixedClock), fixedClock);
     }
 
     private static Path writeTempFile(String fileName, byte[] content) throws Exception {

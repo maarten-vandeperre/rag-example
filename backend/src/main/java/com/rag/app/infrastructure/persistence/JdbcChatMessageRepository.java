@@ -3,6 +3,8 @@ package com.rag.app.infrastructure.persistence;
 import com.rag.app.domain.entities.ChatMessage;
 import com.rag.app.domain.valueobjects.DocumentReference;
 import com.rag.app.usecases.repositories.ChatMessageRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -16,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+@ApplicationScoped
 public final class JdbcChatMessageRepository implements ChatMessageRepository {
     private static final String INSERT_MESSAGE_SQL = """
         INSERT INTO chat_messages (message_id, user_id, question, answer, created_at, response_time_ms)
@@ -60,6 +63,7 @@ public final class JdbcChatMessageRepository implements ChatMessageRepository {
     private final ChatMessageRowMapper chatMessageRowMapper;
     private final DocumentReferenceRowMapper documentReferenceRowMapper;
 
+    @Inject
     public JdbcChatMessageRepository(DataSource dataSource) {
         this(dataSource, new ChatMessageRowMapper(), new DocumentReferenceRowMapper());
     }

@@ -58,6 +58,14 @@ class ApiClient {
   submitChatQuery(question, maxResponseTimeMs, options) {
     return this.chat.submitChatQuery(question, maxResponseTimeMs, options);
   }
+
+  getAnswerSources(answerId, options) {
+    return this.chat.getAnswerSources(answerId, options);
+  }
+
+  getDocumentContent(documentId, options) {
+    return this.chat.getDocumentContent(documentId, options);
+  }
 }
 
 export default ApiClient;

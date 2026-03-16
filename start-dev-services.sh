@@ -23,7 +23,7 @@ run_compose() {
 }
 
 ensure_required_paths() {
-  mkdir -p "${SCRIPT_DIR}/infrastructure/database" "${SCRIPT_DIR}/infrastructure/keycloak" "${SCRIPT_DIR}/infrastructure/weaviate"
+  mkdir -p "${SCRIPT_DIR}/infrastructure/database" "${SCRIPT_DIR}/infrastructure/keycloak" "${SCRIPT_DIR}/infrastructure/weaviate" "${SCRIPT_DIR}/infrastructure/neo4j"
 
   local missing=0
   local file
@@ -32,7 +32,9 @@ ensure_required_paths() {
     "${SCRIPT_DIR}/infrastructure/database/sample-dev-data.sql" \
     "${SCRIPT_DIR}/infrastructure/keycloak/dev-realm.json" \
     "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh" \
-    "${SCRIPT_DIR}/infrastructure/weaviate/dev-schema.json"; do
+    "${SCRIPT_DIR}/infrastructure/weaviate/dev-schema.json" \
+    "${SCRIPT_DIR}/infrastructure/neo4j/init-neo4j-dev.sh" \
+    "${SCRIPT_DIR}/infrastructure/neo4j/dev-constraints.cypher"; do
     if [ ! -e "${file}" ]; then
       printf 'ERROR: Required file not found: %s\n' "${file#"${SCRIPT_DIR}/"}"
       missing=1
@@ -150,6 +152,17 @@ initialize_weaviate_schema() {
   fi
 }
 
+initialize_neo4j_schema() {
+  printf 'Initializing Neo4j schema...\n'
+  chmod +x "${SCRIPT_DIR}/infrastructure/neo4j/init-neo4j-dev.sh"
+  if "${SCRIPT_DIR}/infrastructure/neo4j/init-neo4j-dev.sh"; then
+    printf 'Neo4j schema ready\n'
+  else
+    printf 'WARNING: Neo4j schema initialization failed, but continuing...\n'
+    printf 'You can manually initialize later with: ./infrastructure/neo4j/init-neo4j-dev.sh\n'
+  fi
+}
+
 start_optional_llm() {
   if [ "${START_LLM:-false}" != "true" ]; then
     return 0
@@ -169,10 +182,12 @@ printf 'Using container command: %s\n' "${COMPOSE_CMD[*]}"
 
 run_compose down --remove-orphans >/dev/null 2>&1 || true
 
-printf 'Starting PostgreSQL and Redis...\n'
-run_compose up -d postgres-dev redis-dev
+printf 'Starting PostgreSQL, Redis, and Neo4j...\n'
+run_compose up -d postgres-dev redis-dev neo4j-dev
 wait_for_postgres
 initialize_database
+wait_for_http 'Neo4j Browser' "${NEO4J_HTTP_URL:-http://localhost:${NEO4J_HTTP_PORT:-7474}}" 40 3 neo4j-dev
+initialize_neo4j_schema
 
 printf 'Starting Weaviate...\n'
 run_compose up -d weaviate-dev
@@ -193,6 +208,7 @@ printf 'PostgreSQL: localhost:%s (%s/%s)\n' "${DB_PORT:-5432}" "${DB_USER:-rag_d
 printf 'Weaviate:   %s\n' "${WEAVIATE_URL:-http://localhost:${WEAVIATE_PORT:-8080}}"
 printf 'Keycloak:   %s (%s/%s)\n' "${KEYCLOAK_URL:-http://localhost:${KEYCLOAK_PORT:-8180}}" "${KEYCLOAK_ADMIN:-admin}" "${KEYCLOAK_ADMIN_PASSWORD:-admin123}"
 printf 'Redis:      redis://localhost:%s\n' "${REDIS_PORT:-6379}"
+printf 'Neo4j:      %s (bolt: %s, %s/%s)\n' "${NEO4J_HTTP_URL:-http://localhost:${NEO4J_HTTP_PORT:-7474}}" "${NEO4J_URI:-bolt://localhost:${NEO4J_BOLT_PORT:-7687}}" "${NEO4J_USER:-neo4j}" "${NEO4J_PASSWORD:-dev-password}"
 if [ "${START_LLM:-false}" = "true" ]; then
   printf 'Ollama:     %s\n' "${OLLAMA_URL:-http://localhost:${OLLAMA_PORT:-11434}}"
 fi

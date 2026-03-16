@@ -26,6 +26,34 @@ class ChatApiClient {
       authToken: options.authToken
     });
   }
+
+  async getAnswerSources(answerId, options = {}) {
+    if (!answerId || !String(answerId).trim()) {
+      throw new ApiError('Select an answer before loading sources.', {
+        code: 'MISSING_ANSWER_ID'
+      });
+    }
+
+    return this.httpClient.request(`/chat/answers/${answerId}/sources`, {
+      method: 'GET',
+      userId: options.userId,
+      authToken: options.authToken
+    });
+  }
+
+  async getDocumentContent(documentId, options = {}) {
+    if (!documentId || !String(documentId).trim()) {
+      throw new ApiError('Select a document before loading its content.', {
+        code: 'MISSING_DOCUMENT_ID'
+      });
+    }
+
+    return this.httpClient.request(`/documents/${documentId}/content`, {
+      method: 'GET',
+      userId: options.userId,
+      authToken: options.authToken
+    });
+  }
 }
 
 export default ChatApiClient;

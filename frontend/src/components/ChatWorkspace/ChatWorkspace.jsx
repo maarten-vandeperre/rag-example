@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import ApiClient from '../../services/ApiClient';
+import { AnswerDetailSideView } from '../chat';
 import './ChatWorkspace.css';
 import ChatMessage from './ChatMessage';
 import QuestionInput from './QuestionInput';
@@ -23,6 +24,9 @@ function ChatWorkspace({ apiBaseUrl = process.env.REACT_APP_API_URL || '/api', u
   const [question, setQuestion] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [selectedSource, setSelectedSource] = useState(null);
+  const [documentViewError, setDocumentViewError] = useState('');
   const apiClient = useMemo(() => new ApiClient({
     baseUrl: apiBaseUrl,
     getUserId: () => userId
@@ -33,12 +37,30 @@ function ChatWorkspace({ apiBaseUrl = process.env.REACT_APP_API_URL || '/api', u
       role: 'assistant',
       content: 'Ask a question about your private knowledge base and I will answer with source references from your uploaded documents.',
       timestamp: currentTimeLabel(),
-      references: []
+      references: [],
+      isSystem: true
     }),
     []
   );
 
   const visibleMessages = useMemo(() => [introMessage, ...messages], [introMessage, messages]);
+
+  const handleAnswerSelect = (answer) => {
+    setSelectedAnswer(answer);
+    setSelectedSource(null);
+  };
+
+  const handleDetailViewClose = () => {
+    setSelectedAnswer(null);
+    setSelectedSource(null);
+  };
+
+  const handleViewFullDocument = (source) => {
+    setDocumentViewError('');
+    if (!source?.documentId && !source?.href) {
+      setDocumentViewError('This document is not available for full viewing yet.');
+    }
+  };
 
   const handleSubmit = async () => {
     const trimmedQuestion = question.trim();
@@ -74,8 +96,10 @@ function ChatWorkspace({ apiBaseUrl = process.env.REACT_APP_API_URL || '/api', u
           {
             role: 'assistant',
             content: response.answer,
+            answerId: response.answerId || null,
             timestamp: currentTimeLabel(),
-            references: response.documentReferences || []
+            references: response.documentReferences || [],
+            id: `answer-${Date.now()}`
           }
         ];
       });
@@ -100,13 +124,32 @@ function ChatWorkspace({ apiBaseUrl = process.env.REACT_APP_API_URL || '/api', u
       <div className="workspace-board">
         <div className="workspace-messages">
           {visibleMessages.map((message, index) => (
-            <ChatMessage key={`${message.timestamp}-${index}`} message={message} />
+            <ChatMessage
+              isSelected={selectedAnswer === message}
+              key={message.id || `${message.timestamp}-${index}`}
+              message={message}
+              onAnswerSelect={handleAnswerSelect}
+            />
           ))}
           {error ? <div className="workspace-error">{error}</div> : null}
+          {documentViewError ? <div className="workspace-error">{documentViewError}</div> : null}
         </div>
 
         <QuestionInput value={question} onChange={setQuestion} onSubmit={handleSubmit} disabled={isLoading} />
       </div>
+
+      <AnswerDetailSideView
+        answer={selectedAnswer}
+        error=""
+        isOpen={Boolean(selectedAnswer)}
+        loading={false}
+        onClose={handleDetailViewClose}
+        onSourceSelect={setSelectedSource}
+        onViewFullDocument={handleViewFullDocument}
+        apiClient={apiClient}
+        selectedSource={selectedSource}
+        sources={selectedAnswer?.references || []}
+      />
     </section>
   );
 }

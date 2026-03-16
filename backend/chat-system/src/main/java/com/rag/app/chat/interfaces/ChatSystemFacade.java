@@ -1,6 +1,8 @@
 package com.rag.app.chat.interfaces;
 
 import com.rag.app.chat.usecases.models.DocumentChunk;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsInput;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsOutput;
 import com.rag.app.chat.usecases.models.GetChatHistoryInput;
 import com.rag.app.chat.usecases.models.GetChatHistoryOutput;
 import com.rag.app.chat.usecases.models.QueryDocumentsInput;
@@ -12,6 +14,8 @@ public interface ChatSystemFacade {
     QueryDocumentsOutput queryDocuments(QueryDocumentsInput input);
 
     GetChatHistoryOutput getChatHistory(GetChatHistoryInput input);
+    
+    GetAnswerSourceDetailsOutput getAnswerSourceDetails(GetAnswerSourceDetailsInput input);
 
     void storeDocumentVectors(String documentId, String content);
 

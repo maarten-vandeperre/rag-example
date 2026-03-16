@@ -1,0 +1,60 @@
+.stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(255, 251, 235, 0.95);
+}
+
+.errorCard {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(254, 242, 242, 0.96);
+}
+
+.title,
+.message,
+.meta {
+  margin: 0;
+}
+
+.title {
+  color: #0f172a;
+  font-size: 0.98rem;
+}
+
+.message,
+.meta {
+  color: #475569;
+  line-height: 1.55;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.button,
+.subtleButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 0.95rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button {
+  background: #2b596c;
+  color: #f8fafc;
+}
+
+.subtleButton {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}

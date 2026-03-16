@@ -9,6 +9,7 @@
 - Use `./status-dev-services.sh` to inspect service health and `./stop-dev-services.sh` to tear the development services down.
 - Use `./infrastructure/database/reset-dev-db.sh`, `./infrastructure/database/backup-dev-db.sh`, and `./infrastructure/database/status-dev-db.sh` to manage the local development PostgreSQL dataset.
 - Use `./infrastructure/weaviate/init-weaviate-dev.sh`, `./infrastructure/weaviate/load-sample-data.sh`, `./infrastructure/weaviate/test-vector-search.sh`, and `./infrastructure/weaviate/manage-weaviate-dev.sh` to initialize and inspect local Weaviate development data.
+- Use `./infrastructure/neo4j/init-neo4j-dev.sh`, `./infrastructure/neo4j/load-sample-graph.sh`, and `./infrastructure/neo4j/troubleshoot-neo4j.sh` to manage the local Neo4j development graph database.
 - Full local-development documentation lives in `docs/development/README.md` with supporting workflow, troubleshooting, service-management, and onboarding guides.
 
 ## IDE support

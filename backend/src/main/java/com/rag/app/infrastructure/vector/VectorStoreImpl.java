@@ -1,6 +1,7 @@
 package com.rag.app.infrastructure.vector;
 
 import com.rag.app.domain.entities.Document;
+import com.rag.app.usecases.interfaces.DocumentChunkStore;
 import com.rag.app.usecases.interfaces.SemanticSearch;
 import com.rag.app.usecases.interfaces.VectorStore;
 import com.rag.app.usecases.models.DocumentChunk;
@@ -8,6 +9,7 @@ import com.rag.app.usecases.repositories.DocumentRepository;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -15,8 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-@ApplicationScoped
-public class VectorStoreImpl implements VectorStore, SemanticSearch {
+public class VectorStoreImpl implements VectorStore, SemanticSearch, DocumentChunkStore {
     private static final int DEFAULT_TOP_K = 5;
     private static final double MIN_RELEVANCE_SCORE = 0.2d;
 
@@ -25,22 +26,29 @@ public class VectorStoreImpl implements VectorStore, SemanticSearch {
     private final EmbeddingGenerator embeddingGenerator;
     private final Map<String, List<DocumentChunk>> chunksByDocumentId;
 
-    @Inject
     public VectorStoreImpl(DocumentRepository documentRepository,
                            TextChunker textChunker,
-                           EmbeddingGenerator embeddingGenerator) {
-        this(documentRepository, textChunker, embeddingGenerator, new ConcurrentHashMap<>());
-    }
-
-    VectorStoreImpl(DocumentRepository documentRepository,
-                    TextChunker textChunker,
-                    EmbeddingGenerator embeddingGenerator,
-                    Map<String, List<DocumentChunk>> chunksByDocumentId) {
+                           EmbeddingGenerator embeddingGenerator,
+                           Map<String, List<DocumentChunk>> chunksByDocumentId) {
         this.documentRepository = documentRepository;
         this.textChunker = textChunker;
         this.embeddingGenerator = embeddingGenerator;
         this.chunksByDocumentId = chunksByDocumentId;
     }
+
+    // Constructor for testing
+    public VectorStoreImpl(DocumentRepository documentRepository,
+                           TextChunker textChunker,
+                           EmbeddingGenerator embeddingGenerator) {
+        this.documentRepository = documentRepository;
+        this.textChunker = textChunker;
+        this.embeddingGenerator = embeddingGenerator;
+        this.chunksByDocumentId = new ConcurrentHashMap<>();
+    }
+
+
+
+
 
     @Override
     public void storeDocumentVectors(String documentId, String text) {
@@ -97,6 +105,15 @@ public class VectorStoreImpl implements VectorStore, SemanticSearch {
             .sorted(Comparator.comparingDouble(DocumentChunk::relevanceScore).reversed())
             .limit(DEFAULT_TOP_K)
             .toList();
+    }
+
+    @Override
+    public List<DocumentChunk> getDocumentChunks(UUID documentId) {
+        if (documentId == null) {
+            throw new IllegalArgumentException("documentId must not be null");
+        }
+
+        return List.copyOf(chunksByDocumentId.getOrDefault(documentId.toString(), List.of()));
     }
 
     private DocumentChunk scoredChunk(DocumentChunk chunk, double[] queryEmbedding) {

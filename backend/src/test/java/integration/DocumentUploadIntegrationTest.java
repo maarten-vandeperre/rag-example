@@ -43,7 +43,10 @@ class DocumentUploadIntegrationTest {
         DocumentListResponse uploadedDocuments = (DocumentListResponse) uploadedResponse.getEntity();
 
         assertEquals(3, uploadedDocuments.totalCount());
-        assertTrue(uploadedDocuments.documents().stream().allMatch(document -> "UPLOADED".equals(document.status())));
+        assertTrue(uploadedDocuments.documents().stream().allMatch(document ->
+            "UPLOADED".equals(document.status())
+                || "PROCESSING".equals(document.status())
+                || "READY".equals(document.status())));
 
         ProcessDocumentOutput pdfProcessed = support.process(UUID.fromString(pdfUpload.documentId()), support.createPdf("Uploads are processed asynchronously and searchable for chat answers."));
         ProcessDocumentOutput markdownProcessed = support.process(UUID.fromString(markdownUpload.documentId()), support.loadResource("test-documents/knowledge-base.md"));

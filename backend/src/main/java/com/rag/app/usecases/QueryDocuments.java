@@ -90,6 +90,7 @@ public final class QueryDocuments {
         return new QueryDocumentsOutput(
             generatedAnswer.answer(),
             List.copyOf(generatedAnswer.documentReferences()),
+            List.copyOf(chunks),
             responseTimeMs,
             true,
             null
@@ -107,7 +108,7 @@ public final class QueryDocuments {
     }
 
     private QueryDocumentsOutput failure(String errorMessage, int responseTimeMs) {
-        return new QueryDocumentsOutput(null, List.of(), responseTimeMs, false, errorMessage);
+        return new QueryDocumentsOutput(null, List.of(), List.of(), responseTimeMs, false, errorMessage);
     }
 
     private int elapsed(long startedAt) {

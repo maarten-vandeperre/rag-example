@@ -1,8 +1,13 @@
 package com.rag.app.integration.orchestration;
 
 import com.rag.app.chat.interfaces.ChatSystemFacade;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsInput;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsOutput;
 import com.rag.app.chat.usecases.models.QueryDocumentsInput;
 import com.rag.app.chat.usecases.models.QueryDocumentsOutput;
+import com.rag.app.chat.usecases.models.SourceDetail;
+import com.rag.app.integration.api.dto.AnswerSourceDetailsResponse;
+import com.rag.app.integration.api.dto.SourceDetailDto;
 import com.rag.app.document.domain.valueobjects.DocumentStatus;
 import com.rag.app.document.interfaces.DocumentManagementFacade;
 import com.rag.app.document.usecases.models.DocumentSummary;
@@ -90,6 +95,15 @@ public final class ApplicationOrchestrator {
 
     public Map<String, Boolean> moduleHealthSnapshot() {
         return moduleCoordinator.healthSnapshot();
+    }
+    
+    public AnswerSourceDetailsResponse getAnswerSourceDetails(String answerId, String userId) {
+        UserId requestedUserId = new UserId(UUID.fromString(userId));
+        if (!userManagement.isAuthorized(requestedUserId, "query_documents", "read")) {
+            throw new IllegalArgumentException("User not authorized to access answer source details");
+        }
+        
+        return chatSystem.getAnswerSourceDetails(answerId, userId);
     }
 
     private List<String> getAccessibleDocuments(String userId) {

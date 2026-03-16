@@ -33,10 +33,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UploadDocumentTest {
 
-    private static ProcessDocument createMockProcessDocument() {
+    private static ProcessDocument createMockProcessDocument(DocumentRepository documentRepository) {
         DocumentContentExtractor mockExtractor = (content, fileType) -> "extracted text";
         VectorStore mockVectorStore = (documentId, content) -> {};
-        return new ProcessDocument(new InMemoryDocumentRepository(), mockExtractor, mockVectorStore);
+        return new ProcessDocument(documentRepository, mockExtractor, mockVectorStore);
     }
 
     @Test
@@ -49,7 +49,7 @@ class UploadDocumentTest {
         UploadDocument uploadDocument = new UploadDocument(
             documentRepository,
             userRepository,
-            createMockProcessDocument(),
+            createMockProcessDocument(documentRepository),
             Clock.fixed(Instant.parse("2026-03-13T14:00:00Z"), ZoneOffset.UTC)
         );
 
@@ -62,14 +62,15 @@ class UploadDocumentTest {
         ));
 
         assertNotNull(output.documentId());
-        assertEquals(DocumentStatus.UPLOADED, output.status());
-        assertEquals("Document uploaded successfully", output.message());
+        assertEquals(DocumentStatus.PROCESSING, output.status());
+        assertEquals("Document uploaded and processing started", output.message());
         assertEquals(1, documentRepository.documents.size());
     }
 
     @Test
     void shouldRejectOversizedFiles() {
-        UploadDocument uploadDocument = new UploadDocument(new InMemoryDocumentRepository(), new InMemoryUserRepository(), createMockProcessDocument(), Clock.systemUTC());
+        InMemoryDocumentRepository documentRepository = new InMemoryDocumentRepository();
+        UploadDocument uploadDocument = new UploadDocument(documentRepository, new InMemoryUserRepository(), createMockProcessDocument(documentRepository), Clock.systemUTC());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> uploadDocument.execute(
             new UploadDocumentInput("guide.pdf", 41_943_041L, FileType.PDF, new byte[]{1}, UUID.randomUUID())
@@ -80,7 +81,8 @@ class UploadDocumentTest {
 
     @Test
     void shouldRejectMissingFileType() {
-        UploadDocument uploadDocument = new UploadDocument(new InMemoryDocumentRepository(), new InMemoryUserRepository(), createMockProcessDocument(), Clock.systemUTC());
+        InMemoryDocumentRepository documentRepository = new InMemoryDocumentRepository();
+        UploadDocument uploadDocument = new UploadDocument(documentRepository, new InMemoryUserRepository(), createMockProcessDocument(documentRepository), Clock.systemUTC());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> uploadDocument.execute(
             new UploadDocumentInput("guide.pdf", 1L, null, new byte[]{1}, UUID.randomUUID())
@@ -91,7 +93,8 @@ class UploadDocumentTest {
 
     @Test
     void shouldRejectUnknownUsers() {
-        UploadDocument uploadDocument = new UploadDocument(new InMemoryDocumentRepository(), new InMemoryUserRepository(), createMockProcessDocument(), Clock.systemUTC());
+        InMemoryDocumentRepository documentRepository = new InMemoryDocumentRepository();
+        UploadDocument uploadDocument = new UploadDocument(documentRepository, new InMemoryUserRepository(), createMockProcessDocument(documentRepository), Clock.systemUTC());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> uploadDocument.execute(
             new UploadDocumentInput("guide.md", 1L, FileType.MARKDOWN, new byte[]{1}, UUID.randomUUID())
@@ -106,7 +109,8 @@ class UploadDocumentTest {
         UUID userId = UUID.randomUUID();
         userRepository.store(new User(userId, "jane", "jane@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T10:00:00Z"), false));
-        UploadDocument uploadDocument = new UploadDocument(new InMemoryDocumentRepository(), userRepository, createMockProcessDocument(), Clock.systemUTC());
+        InMemoryDocumentRepository documentRepository = new InMemoryDocumentRepository();
+        UploadDocument uploadDocument = new UploadDocument(documentRepository, userRepository, createMockProcessDocument(documentRepository), Clock.systemUTC());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> uploadDocument.execute(
             new UploadDocumentInput("guide.txt", 1L, FileType.PLAIN_TEXT, new byte[]{1}, userId)
@@ -122,7 +126,7 @@ class UploadDocumentTest {
         UUID userId = UUID.randomUUID();
         userRepository.store(new User(userId, "jane", "jane@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T10:00:00Z"), true));
-        UploadDocument uploadDocument = new UploadDocument(uploadRepository(documentRepository), userRepository, createMockProcessDocument(), Clock.systemUTC());
+        UploadDocument uploadDocument = new UploadDocument(uploadRepository(documentRepository), userRepository, createMockProcessDocument(documentRepository), Clock.systemUTC());
 
         UploadDocumentInput input = new UploadDocumentInput("guide.pdf", 3L, FileType.PDF, new byte[]{9, 9, 9}, userId);
         uploadDocument.execute(input);

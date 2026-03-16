@@ -2,7 +2,8 @@ package com.rag.app.api.dto;
 
 import java.util.List;
 
-public record ChatQueryResponse(String answer,
+public record ChatQueryResponse(String answerId,
+                                String answer,
                                 List<DocumentReferenceDto> documentReferences,
                                 int responseTimeMs,
                                 boolean success,

@@ -2,20 +2,25 @@ package com.rag.app.api;
 
 import com.rag.app.api.dto.ChatQueryRequest;
 import com.rag.app.api.dto.ChatQueryResponse;
+import com.rag.app.domain.entities.ChatMessage;
 import com.rag.app.domain.entities.Document;
 import com.rag.app.domain.entities.User;
+import com.rag.app.domain.valueobjects.AnswerSourceReference;
 import com.rag.app.domain.valueobjects.DocumentMetadata;
 import com.rag.app.domain.valueobjects.DocumentReference;
 import com.rag.app.domain.valueobjects.DocumentStatus;
 import com.rag.app.domain.valueobjects.FileType;
 import com.rag.app.domain.valueobjects.UserRole;
+import com.rag.app.infrastructure.vector.InMemoryAnswerSourceChunkStore;
 import com.rag.app.usecases.QueryDocuments;
 import com.rag.app.usecases.interfaces.AnswerGenerator;
+import com.rag.app.usecases.interfaces.AnswerPersistence;
 import com.rag.app.usecases.interfaces.SemanticSearch;
 import com.rag.app.usecases.models.DocumentChunk;
 import com.rag.app.usecases.models.FailedDocumentInfo;
 import com.rag.app.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.usecases.models.ProcessingStatistics;
+import com.rag.app.usecases.repositories.ChatMessageRepository;
 import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -62,6 +67,7 @@ class ChatControllerTest {
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(200, response.getStatus());
         assertEquals(true, entity.success());
+        assertEquals(true, entity.answerId() != null && !entity.answerId().isBlank());
         assertEquals("Upload the PDF and wait for processing.", entity.answer());
         assertEquals(1, entity.documentReferences().size());
         assertEquals("guide.pdf", entity.documentReferences().get(0).documentName());
@@ -144,6 +150,29 @@ class ChatControllerTest {
 
         ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
         assertEquals(500, response.getStatus());
+        assertEquals("Unable to process chat query", entity.errorMessage());
+    }
+
+    @Test
+    void shouldReturnInternalServerErrorWhenAnswerPersistenceFails() {
+        UUID userId = UUID.randomUUID();
+        QueryDocuments queryDocuments = createUseCase(
+            user(userId),
+            List.of(readyDocument(userId)),
+            (query, documentIds) -> List.of(new DocumentChunk(UUID.randomUUID(), "guide.pdf", "p-12", "context", 0.98d)),
+            (question, context) -> new AnswerGenerator.GeneratedAnswer(
+                "You can still see the answer even if history storage fails.",
+                List.of(new DocumentReference(context.get(0).documentId(), context.get(0).documentName(), context.get(0).paragraphReference(), context.get(0).relevanceScore()))
+            ),
+            Clock.fixed(Instant.parse("2026-03-13T18:00:00Z"), ZoneOffset.UTC)
+        );
+        ChatController controller = new ChatController(queryDocuments, DAEMON_EXECUTOR, new FailingAnswerPersistence(), new InMemoryAnswerSourceChunkStore());
+
+        Response response = controller.query(new ChatQueryRequest("Will I still get an answer?", null), userId.toString(), securityContext(userId));
+
+        ChatQueryResponse entity = (ChatQueryResponse) response.getEntity();
+        assertEquals(500, response.getStatus());
+        assertEquals(false, entity.success());
         assertEquals("Unable to process chat query", entity.errorMessage());
     }
 
@@ -305,6 +334,13 @@ class ChatControllerTest {
 
         void store(User user) {
             users.put(user.userId(), user);
+        }
+    }
+
+    private static final class FailingAnswerPersistence implements AnswerPersistence {
+        @Override
+        public void persist(ChatMessage message, List<AnswerSourceReference> sourceReferences) {
+            throw new IllegalStateException("database unavailable");
         }
     }
 }

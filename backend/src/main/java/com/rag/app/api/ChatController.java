@@ -3,10 +3,17 @@ package com.rag.app.api;
 import com.rag.app.api.dto.ChatQueryRequest;
 import com.rag.app.api.dto.ChatQueryResponse;
 import com.rag.app.api.dto.DocumentReferenceDto;
+import com.rag.app.domain.entities.ChatMessage;
+import com.rag.app.domain.valueobjects.AnswerSourceReference;
 import com.rag.app.domain.valueobjects.DocumentReference;
+import com.rag.app.infrastructure.persistence.JdbcAnswerPersistence;
 import com.rag.app.usecases.QueryDocuments;
+import com.rag.app.usecases.interfaces.AnswerSourceChunkStore;
+import com.rag.app.usecases.interfaces.AnswerPersistence;
+import com.rag.app.infrastructure.vector.InMemoryAnswerSourceChunkStore;
 import com.rag.app.usecases.models.QueryDocumentsInput;
 import com.rag.app.usecases.models.QueryDocumentsOutput;
+import com.rag.app.usecases.repositories.ChatMessageRepository;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -19,6 +26,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import org.jboss.logging.Logger;
+
 import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
@@ -36,21 +45,43 @@ import java.util.concurrent.TimeoutException;
 @Produces(MediaType.APPLICATION_JSON)
 @ApplicationScoped
 public class ChatController {
+    private static final Logger LOG = Logger.getLogger(ChatController.class);
     private static final String NO_ANSWER_FOUND_MESSAGE = "no answer found";
     private static final String QUERY_TIMEOUT_MESSAGE = "Query exceeded the allowed response time";
     private static final String GENERIC_ERROR_MESSAGE = "Unable to process chat query";
 
     private final QueryDocuments queryDocuments;
     private final Executor executor;
+    private final AnswerPersistence answerPersistence;
+    private final AnswerSourceChunkStore answerSourceChunkStore;
 
     @Inject
+    public ChatController(QueryDocuments queryDocuments,
+                          JdbcAnswerPersistence answerPersistence,
+                          AnswerSourceChunkStore answerSourceChunkStore) {
+        this(queryDocuments, createDaemonExecutor(), answerPersistence, answerSourceChunkStore);
+    }
+
     public ChatController(QueryDocuments queryDocuments) {
-        this(queryDocuments, createDaemonExecutor());
+        this(queryDocuments, createDaemonExecutor(), defaultInMemoryPersistence(), new InMemoryAnswerSourceChunkStore());
     }
 
     ChatController(QueryDocuments queryDocuments, Executor executor) {
+        this(queryDocuments, executor, defaultInMemoryPersistence(), new InMemoryAnswerSourceChunkStore());
+    }
+
+    ChatController(QueryDocuments queryDocuments, Executor executor, ChatMessageRepository chatMessageRepository) {
+        this(queryDocuments, executor, new InMemoryAnswerPersistence(chatMessageRepository), new InMemoryAnswerSourceChunkStore());
+    }
+
+    ChatController(QueryDocuments queryDocuments,
+                   Executor executor,
+                   AnswerPersistence answerPersistence,
+                   AnswerSourceChunkStore answerSourceChunkStore) {
         this.queryDocuments = Objects.requireNonNull(queryDocuments, "queryDocuments must not be null");
         this.executor = Objects.requireNonNull(executor, "executor must not be null");
+        this.answerPersistence = Objects.requireNonNull(answerPersistence, "answerPersistence must not be null");
+        this.answerSourceChunkStore = Objects.requireNonNull(answerSourceChunkStore, "answerSourceChunkStore must not be null");
     }
 
     @POST
@@ -67,7 +98,7 @@ public class ChatController {
                 .supplyAsync(() -> queryDocuments.execute(new QueryDocumentsInput(userId, validatedRequest.question(), timeoutMs)), executor)
                 .get(timeoutMs, TimeUnit.MILLISECONDS);
 
-            return mapOutput(output);
+            return mapOutput(userId, validatedRequest.question(), output);
         } catch (IllegalArgumentException exception) {
             return badRequest(exception.getMessage());
         } catch (TimeoutException exception) {
@@ -128,9 +159,32 @@ public class ChatController {
         }
     }
 
-    private Response mapOutput(QueryDocumentsOutput output) {
+    private Response mapOutput(UUID userId, String question, QueryDocumentsOutput output) {
         if (output.success()) {
+            UUID answerId = UUID.randomUUID();
+            ChatMessage message = new ChatMessage(
+                answerId,
+                userId,
+                question,
+                output.answer(),
+                output.documentReferences(),
+                java.time.Instant.now(),
+                Math.max(1, output.responseTimeMs())
+            );
+
+            try {
+                answerPersistence.persist(message, sourceReferences(answerId, output));
+                answerSourceChunkStore.store(answerId, output.sourceChunks());
+            } catch (RuntimeException exception) {
+                LOG.errorf(exception,
+                    "Failed to persist chat answer %s for user %s. Returning internal error instead of incomplete answer.",
+                    message.messageId(),
+                    message.userId());
+                return internalError();
+            }
+
             return Response.ok(new ChatQueryResponse(
+                answerId.toString(),
                 output.answer(),
                 output.documentReferences().stream().map(this::toDto).toList(),
                 output.responseTimeMs(),
@@ -157,6 +211,15 @@ public class ChatController {
             .build();
     }
 
+    private List<AnswerSourceReference> sourceReferences(UUID answerId, QueryDocumentsOutput output) {
+        List<com.rag.app.usecases.models.DocumentChunk> chunks = output.sourceChunks();
+        java.util.ArrayList<AnswerSourceReference> references = new java.util.ArrayList<>(chunks.size());
+        for (int index = 0; index < chunks.size(); index++) {
+            references.add(AnswerSourceReference.fromChunk(answerId, chunks.get(index), index));
+        }
+        return List.copyOf(references);
+    }
+
     private Response badRequest(String message) {
         return Response.status(Response.Status.BAD_REQUEST)
             .entity(errorResponse(message, 0))
@@ -170,7 +233,7 @@ public class ChatController {
     }
 
     private ChatQueryResponse errorResponse(String message, int responseTimeMs) {
-        return new ChatQueryResponse(null, List.of(), responseTimeMs, false, message);
+        return new ChatQueryResponse(null, null, List.of(), responseTimeMs, false, message);
     }
 
     private DocumentReferenceDto toDto(DocumentReference reference) {
@@ -189,5 +252,50 @@ public class ChatController {
             return thread;
         };
         return Executors.newCachedThreadPool(threadFactory);
+    }
+
+    private static InMemoryAnswerPersistence defaultInMemoryPersistence() {
+        return new InMemoryAnswerPersistence(new InMemoryChatMessageRepository());
+    }
+
+    private static final class InMemoryChatMessageRepository implements ChatMessageRepository {
+        private final java.util.Map<UUID, ChatMessage> messages = new java.util.concurrent.ConcurrentHashMap<>();
+
+        @Override
+        public ChatMessage save(ChatMessage message) {
+            messages.put(message.messageId(), message);
+            return message;
+        }
+
+        @Override
+        public java.util.Optional<ChatMessage> findById(UUID messageId) {
+            return java.util.Optional.ofNullable(messages.get(messageId));
+        }
+
+        @Override
+        public List<ChatMessage> findByUserId(UUID userId) {
+            return messages.values().stream().filter(message -> message.userId().equals(userId)).toList();
+        }
+
+        @Override
+        public List<ChatMessage> findRecentByUserId(UUID userId, int limit) {
+            return findByUserId(userId).stream()
+                .sorted(java.util.Comparator.comparing(ChatMessage::createdAt).reversed())
+                .limit(limit)
+                .toList();
+        }
+    }
+
+    private static final class InMemoryAnswerPersistence implements AnswerPersistence {
+        private final ChatMessageRepository chatMessageRepository;
+
+        private InMemoryAnswerPersistence(ChatMessageRepository chatMessageRepository) {
+            this.chatMessageRepository = chatMessageRepository;
+        }
+
+        @Override
+        public void persist(ChatMessage message, List<AnswerSourceReference> sourceReferences) {
+            chatMessageRepository.save(message);
+        }
     }
 }

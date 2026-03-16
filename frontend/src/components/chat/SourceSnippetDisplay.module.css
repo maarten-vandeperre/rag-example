@@ -1,0 +1,70 @@
+.card,
+.stateCard,
+.errorCard {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.errorCard {
+  background: rgba(254, 242, 242, 0.96);
+  border-color: rgba(220, 38, 38, 0.18);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.title,
+.meta,
+.message,
+.snippet,
+.context {
+  margin: 0;
+}
+
+.title {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.meta,
+.message,
+.context {
+  color: #475569;
+  line-height: 1.6;
+}
+
+.snippet {
+  padding-left: 1rem;
+  border-left: 4px solid rgba(43, 89, 108, 0.25);
+  color: #1e293b;
+  line-height: 1.6;
+}
+
+.documentButton,
+.retryButton {
+  font: inherit;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 0.95rem;
+  background: #2b596c;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.retryButton {
+  justify-self: start;
+}
+
+@media (max-width: 720px) {
+  .header {
+    display: grid;
+  }
+}

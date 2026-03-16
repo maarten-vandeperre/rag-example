@@ -69,6 +69,8 @@ check_tcp 'PostgreSQL' 'localhost' "${DB_PORT:-5432}"
 check_http 'Weaviate' "${WEAVIATE_URL:-http://localhost:${WEAVIATE_PORT:-8080}}/v1/meta"
 check_http 'Keycloak' "${KEYCLOAK_URL:-http://localhost:${KEYCLOAK_PORT:-8180}}/health/ready"
 check_tcp 'Redis' 'localhost' "${REDIS_PORT:-6379}"
+check_http 'Neo4j HTTP' "${NEO4J_HTTP_URL:-http://localhost:${NEO4J_HTTP_PORT:-7474}}"
+check_tcp 'Neo4j Bolt' 'localhost' "${NEO4J_BOLT_PORT:-7687}"
 check_http 'Ollama' "${OLLAMA_URL:-http://localhost:${OLLAMA_PORT:-11434}}/api/tags"
 
 printf '\n=== Quick Actions ===\n'

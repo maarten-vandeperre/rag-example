@@ -63,6 +63,19 @@ curl http://localhost:8180/health/ready
 redis-cli -h localhost ping
 ```
 
+### Neo4j
+
+- Container: `rag-neo4j-dev`
+- HTTP Browser Port: `7474`
+- Bolt Port: `7687`
+
+```bash
+curl http://localhost:7474
+./infrastructure/neo4j/init-neo4j-dev.sh
+./infrastructure/neo4j/load-sample-graph.sh
+./infrastructure/neo4j/troubleshoot-neo4j.sh
+```
+
 ### Ollama
 
 - Container: `rag-ollama-dev`

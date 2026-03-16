@@ -47,3 +47,65 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id_created_at
 
 CREATE INDEX IF NOT EXISTS idx_document_references_message_id
     ON document_references(message_id);
+
+CREATE TABLE IF NOT EXISTS answer_source_references (
+    reference_id VARCHAR(255) PRIMARY KEY,
+    answer_id VARCHAR(255) NOT NULL,
+    document_id VARCHAR(255) NOT NULL,
+    chunk_id VARCHAR(255) NOT NULL,
+    snippet_content TEXT NOT NULL,
+    snippet_context TEXT,
+    start_position INT,
+    end_position INT,
+    relevance_score DECIMAL(5,4) NOT NULL,
+    source_order INT NOT NULL,
+    document_title VARCHAR(500),
+    document_filename VARCHAR(500),
+    document_file_type VARCHAR(50),
+    page_number INT,
+    chunk_index INT,
+    created_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_answer_source_references_answer_id
+        FOREIGN KEY (answer_id) REFERENCES chat_messages(message_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_answer_id
+    ON answer_source_references(answer_id, source_order);
+
+-- Answer Source References Table for detailed chunk-level source tracking
+CREATE TABLE IF NOT EXISTS answer_source_references (
+    id VARCHAR(255) PRIMARY KEY,
+    answer_id VARCHAR(255) NOT NULL,
+    document_id VARCHAR(255),
+    chunk_id VARCHAR(255) NOT NULL,
+    snippet_content TEXT NOT NULL,
+    snippet_context TEXT,
+    start_position INTEGER,
+    end_position INTEGER,
+    relevance_score DECIMAL(5,4) NOT NULL,
+    source_order INTEGER NOT NULL,
+    document_title VARCHAR(500),
+    document_filename VARCHAR(255),
+    document_file_type VARCHAR(50),
+    page_number INTEGER,
+    chunk_index INTEGER,
+    created_at TIMESTAMP NOT NULL,
+    
+    CONSTRAINT fk_answer_source_answer 
+        FOREIGN KEY (answer_id) REFERENCES chat_messages(message_id) ON DELETE CASCADE,
+    CONSTRAINT fk_answer_source_document 
+        FOREIGN KEY (document_id) REFERENCES documents(document_id) ON DELETE SET NULL,
+    CONSTRAINT chk_relevance_score 
+        CHECK (relevance_score >= 0.0 AND relevance_score <= 1.0),
+    CONSTRAINT chk_source_order 
+        CHECK (source_order >= 0),
+    CONSTRAINT chk_positions 
+        CHECK (start_position IS NULL OR end_position IS NULL OR start_position <= end_position)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_answer_id ON answer_source_references(answer_id);
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_document_id ON answer_source_references(document_id);
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_chunk_id ON answer_source_references(chunk_id);
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_source_order ON answer_source_references(answer_id, source_order);
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_created_at ON answer_source_references(created_at);
