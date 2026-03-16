@@ -13,12 +13,13 @@ Supporting service stack:
 - Weaviate
 - Keycloak
 - Redis
+- Neo4j
 - Ollama
 
 Current compose details that matter for debugging:
 
 - PostgreSQL uses `pgvector/pgvector:pg15`
-- Weaviate health checks target `http://localhost:8080/v1/.well-known/ready`
+- Weaviate health checks target `http://localhost:8080/v1/meta`
 - Keycloak now uses PostgreSQL via `KC_DB=postgres`
 - Ollama is optional and starts only when `START_LLM=true`
 
@@ -45,7 +46,8 @@ Startup order:
 2. `weaviate-dev`
 3. Weaviate schema initialization through `infrastructure/weaviate/init-weaviate-dev.sh`
 4. `keycloak-dev`
-5. optional `ollama-dev` when `START_LLM=true`
+5. `neo4j-dev`
+6. optional `ollama-dev` when `START_LLM=true`
 
 Required files checked before startup:
 
@@ -67,6 +69,8 @@ Required files checked before startup:
 | Weaviate | `http://localhost:8080` |
 | Keycloak | `http://localhost:8180` |
 | Redis | `redis://localhost:6379` |
+| Neo4j Browser | `http://localhost:7474` |
+| Neo4j Bolt | `bolt://localhost:7687` |
 | Ollama | `http://localhost:11434` |
 
 ## Backend native dev
@@ -86,6 +90,12 @@ Important dev profile settings from `backend/src/main/resources/application-dev.
 - Weaviate provider URL `http://localhost:8080`
 - Ollama model `tinyllama`
 - document storage path `./storage/documents`
+
+Current backend toolchain notes:
+
+- the workspace is aligned to Quarkus `3.32.3`
+- Gradle `9.1.0` is used for Java 25 compatibility
+- `backend/pom.xml` is kept aligned with the same Quarkus platform so Maven- and Gradle-based backend workflows do not diverge
 
 Verification:
 
@@ -135,9 +145,17 @@ Realm and clients:
 Useful scripts:
 
 ```bash
+./infrastructure/keycloak/validate-realm.sh
 ./infrastructure/keycloak/configure-dev-realm.sh
 ./infrastructure/keycloak/test-auth.sh
 ```
+
+What changed for the current realm import flow:
+
+- the dev realm JSON is aligned with Keycloak 23 import requirements
+- client settings use supported Keycloak 23 attributes
+- the compose service uses stronger health checks and verbose startup logging
+- the validation script catches common compatibility mistakes before startup debugging begins
 
 Common dev users:
 
@@ -157,6 +175,8 @@ DB_PORT=5432
 WEAVIATE_PORT=8080
 KEYCLOAK_PORT=8180
 REDIS_PORT=6379
+NEO4J_HTTP_PORT=7474
+NEO4J_BOLT_PORT=7687
 OLLAMA_PORT=11434
 ```
 
@@ -178,7 +198,28 @@ Weaviate scripts:
 ./infrastructure/weaviate/init-weaviate-dev.sh
 ./infrastructure/weaviate/load-sample-data.sh
 ./infrastructure/weaviate/test-vector-search.sh
+./infrastructure/weaviate/troubleshoot-weaviate.sh
 ./infrastructure/weaviate/manage-weaviate-dev.sh status
 ```
 
 Important caveat: the Weaviate sample vectors are smoke-test data and use fake 10-dimensional vectors, while backend dev config declares `app.vector.dimension=384`.
+
+Current Weaviate bootstrap behavior:
+
+- the dev schema uses a simplified `DocumentChunk` class for startup reliability
+- `./start-dev-services.sh` waits for Weaviate readiness before running schema initialization
+- the initializer validates schema JSON before posting it
+- if schema creation returns `422`, the initializer falls back to a minimal schema and prints recovery guidance
+
+Neo4j scripts:
+
+```bash
+./infrastructure/neo4j/init-neo4j-dev.sh
+./infrastructure/neo4j/load-sample-graph.sh
+./infrastructure/neo4j/troubleshoot-neo4j.sh
+```
+
+Default local Neo4j development credentials:
+
+- username: `neo4j`
+- password: `dev-password`

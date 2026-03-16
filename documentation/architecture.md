@@ -75,7 +75,15 @@ Current extraction limits:
 2. `QueryDocuments` selects `READY` documents visible to the caller
 3. semantic search returns the top 5 chunks above the relevance threshold
 4. the answer generator creates a grounded answer with source references
-5. chat history is persisted through `ChatMessageRepository`
+5. the backend persists the answer and its answer-to-chunk source references together
+6. the API returns an `answerId` only after persistence succeeds, so later source-detail lookups have durable backing data
+
+### Answer detail retrieval flow
+
+1. the frontend stores the `answerId` from `POST /api/chat/query`
+2. `AnswerSourceController` loads source metadata for that answer and enforces ownership checks
+3. `GetAnswerSourceDetails` reads persisted `answer_source_references` rows and returns stored snippet text plus availability flags for the UI
+4. `DocumentContentController` returns full document content when the user opens the document viewer
 
 Current implementation caveat:
 
@@ -90,6 +98,7 @@ PostgreSQL schema in `backend/src/main/resources/schema.sql` stores:
 - `documents`
 - `chat_messages`
 - `document_references`
+- `answer_source_references`
 
 JDBC adapters live in `backend/src/main/java/com/rag/app/infrastructure/persistence/`.
 
@@ -98,6 +107,7 @@ Important persistence details:
 - document status updates clear `failure_reason` when appropriate
 - admin reporting reads from `last_updated`, `failure_reason`, and `processing_started_at`
 - chat references are saved transactionally with ordered `reference_index`
+- answer detail retrieval uses durable answer-to-chunk references with stored snippet text, relevance score, ordering, and cached document metadata
 
 ## Infrastructure services
 
@@ -118,6 +128,12 @@ Important persistence details:
 - bootstrapped by `ollama-init`
 - keeps pulled models in `ollama-models`
 - defaults to `tinyllama`
+
+### Neo4j
+
+- available in the native development stack for graph-backed experimentation and future graph persistence work
+- exposed locally through Neo4j Browser on `7474` and Bolt on `7687`
+- bootstrapped with scripts under `infrastructure/neo4j/` for constraints, sample graph data, and troubleshooting
 
 ## Frontend structure
 

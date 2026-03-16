@@ -69,7 +69,25 @@ This uses `docker-compose.dev.yml` plus `.env.dev` to start:
 - Weaviate on `8080`
 - Keycloak on `8180`
 - Redis on `6379`
+- Neo4j Browser on `7474` and Bolt on `7687`
 - Ollama on `11434` when `START_LLM=true`
+
+Before relying on local auth flows, validate the imported Keycloak realm:
+
+```bash
+./infrastructure/keycloak/validate-realm.sh
+./infrastructure/keycloak/test-auth.sh
+```
+
+Development realm details:
+
+- realm: `rag-app-dev`
+- backend client: `rag-app-backend`
+- frontend client: `rag-app-frontend`
+- seeded users:
+  - `john.doe / password123`
+  - `jane.admin / admin123`
+  - `test.user / test123`
 
 Startup order is managed automatically:
 
@@ -77,7 +95,15 @@ Startup order is managed automatically:
 2. Weaviate
 3. Weaviate schema bootstrap
 4. Keycloak
-5. optional Ollama
+5. Neo4j
+6. optional Ollama
+
+If Weaviate needs manual recovery during local startup:
+
+```bash
+./infrastructure/weaviate/init-weaviate-dev.sh
+./infrastructure/weaviate/troubleshoot-weaviate.sh
+```
 
 Then start the apps separately:
 
@@ -92,6 +118,7 @@ Native dev URLs:
 - backend API: `http://localhost:8081/api`
 - Swagger UI: `http://localhost:8081/q/swagger-ui`
 - Keycloak admin: `http://localhost:8180/admin`
+- Neo4j Browser: `http://localhost:7474`
 
 ## Start the local infrastructure stack
 
@@ -136,6 +163,12 @@ This starts:
 ./gradlew buildWorkspace
 ./gradlew packageRelease
 ./gradlew diagnostics
+```
+
+Backend development mode is verified on Java 25 with the current workspace toolchain. For backend-only startup:
+
+```bash
+./gradlew :backend:quarkusDev
 ```
 
 ## Environment configuration
@@ -190,10 +223,11 @@ REACT_APP_SUPPORTED_FILE_TYPES=pdf,md,txt
 Example native dev session:
 
 1. Run `./start-dev-services.sh`
+2. Run `./infrastructure/keycloak/validate-realm.sh`
 2. Run `cd backend && ./start-dev.sh`
 3. Run `cd frontend && ./start-dev.sh`
 4. Open `http://localhost:3000`
-5. Use the dev auth stub or seeded Keycloak users for service checks
+5. Use the dev auth stub in the browser UI or the seeded Keycloak users for service checks
 
 ## Health checks
 

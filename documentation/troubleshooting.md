@@ -94,6 +94,23 @@ The current identity contract is inconsistent by endpoint:
 
 If one flow works and another fails, verify the correct identity mechanism for that endpoint.
 
+### Answer details show warnings or fail to load
+
+Checks:
+
+- confirm the chat answer returned an `answerId`
+- retry the answer detail request once to rule out transient frontend fetch failures
+- if some sources load and others do not, treat the warning as partial degradation rather than a total failure
+- use browser dev tools to inspect `/api/chat/answers/{answerId}/sources` and `/api/documents/{documentId}/content`
+
+Typical outcomes:
+
+- no sources: the answer has no linked source records
+- partial failure: some source entries are available and some are not
+- retryable error: network or timeout issue while loading source detail data
+
+If the drawer previously showed `No source snippet is available`, regenerate the answer and retry. New answers now persist answer-to-chunk references with snippet text, so source detail lookups should survive backend restarts.
+
 ## Infrastructure problems
 
 ### Compose service fails to start
@@ -155,6 +172,25 @@ Checks:
 
 So docs and tests should treat browser auth as stubbed, not as a full live Keycloak login flow.
 
+### Keycloak realm import or auth smoke tests fail
+
+Checks:
+
+- run `./infrastructure/keycloak/validate-realm.sh` before restarting services
+- rerun `./infrastructure/keycloak/test-auth.sh` after Keycloak is healthy
+- confirm the realm is `rag-app-dev`
+- confirm the expected clients exist: `rag-app-backend` and `rag-app-frontend`
+- if import still fails, inspect `keycloak-dev` container logs from `./troubleshoot-dev-services.sh`
+
+Example recovery flow:
+
+```bash
+./stop-dev-services.sh --clean
+./start-dev-services.sh
+./infrastructure/keycloak/validate-realm.sh
+./infrastructure/keycloak/test-auth.sh
+```
+
 ### Weaviate sample data gives unrealistic search behavior
 
 Checks:
@@ -164,6 +200,28 @@ Checks:
 
 Use the sample data to verify the dev environment, not to benchmark real retrieval quality.
 
+### Weaviate schema initialization fails
+
+Symptoms:
+
+- `./start-dev-services.sh` pauses at Weaviate initialization
+- schema creation returns `422`
+- `DocumentChunk` is missing from `/v1/schema`
+
+Checks:
+
+- run `./infrastructure/weaviate/init-weaviate-dev.sh`
+- run `./infrastructure/weaviate/troubleshoot-weaviate.sh`
+- confirm `infrastructure/weaviate/dev-schema.json` is valid JSON
+- confirm `http://localhost:8080/v1/meta` responds before retrying schema creation
+
+Example verification:
+
+```bash
+curl http://localhost:8080/v1/meta
+curl http://localhost:8080/v1/schema
+```
+
 ### Ollama appears down during local setup
 
 Checks:
@@ -172,7 +230,39 @@ Checks:
 - it starts only when `START_LLM=true`
 - if not enabled, an unreachable Ollama endpoint does not mean the core dev stack failed
 
+### Neo4j is unavailable in native development
+
+Checks:
+
+- open `http://localhost:7474` and log in with `neo4j / dev-password`
+- run `./infrastructure/neo4j/init-neo4j-dev.sh` if constraints were not created
+- run `./infrastructure/neo4j/troubleshoot-neo4j.sh` for connectivity and recent-log output
+- verify ports `7474` and `7687` are free before restarting the dev stack
+
 ## Test failures
+
+### Backend dev mode fails on Java 25
+
+Symptoms:
+
+- `./gradlew :backend:quarkusDev` fails during startup
+- errors mention unsupported class file versions or Gradle DSL incompatibilities
+
+Checks:
+
+- confirm `java -version` reports Java 25
+- confirm `./gradlew --version` reports the repository wrapper version
+- rerun `./gradlew :backend:test`
+- if you use Maven inside `backend/`, keep it on the aligned `backend/pom.xml` instead of mixing external Quarkus versions
+
+Example verification flow:
+
+```bash
+java -version
+./gradlew --version
+./gradlew :backend:test
+./gradlew :backend:quarkusDev
+```
 
 Useful locations:
 

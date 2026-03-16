@@ -215,6 +215,7 @@ Success response (`200`):
 
 ```json
 {
+  "answerId": "51f0a2dd-3e79-4f53-9c7d-0c3d3f1cb0b7",
   "answer": "The retention policy is 30 days for temporary uploads.",
   "documentReferences": [
     {
@@ -230,6 +231,12 @@ Success response (`200`):
 }
 ```
 
+The returned `answerId` is used by the answer detail flow to load source snippets later.
+
+Current persistence rule:
+
+- newly returned answers are only exposed after the backend persists the answer record and its answer-to-source references together
+
 Error behavior:
 
 - `400` null body, blank `question`, invalid timeout, or missing authenticated UUID
@@ -241,6 +248,7 @@ No-answer response example:
 
 ```json
 {
+  "answerId": null,
   "answer": null,
   "documentReferences": [],
   "responseTimeMs": 42,
@@ -248,3 +256,119 @@ No-answer response example:
   "errorMessage": "no answer found"
 }
 ```
+
+## `GET /api/chat/answers/{answerId}/sources`
+
+- Method: `GET`
+- Endpoint: `/api/chat/answers/{answerId}/sources`
+- Request body: none
+- Auth requirement: authenticated principal UUID
+
+Behavior:
+
+- validates that the answer exists and belongs to the caller
+- returns answer-scoped source metadata for the selected chat answer
+- includes `available` flags so the UI can degrade gracefully when a source cannot be loaded
+- source details are reconstructed from persisted answer-to-chunk records, so lookups continue to work after backend restarts
+- the service returns the actual stored snippet text when it is available instead of an empty snippet placeholder
+
+Example:
+
+```bash
+curl http://localhost:8080/api/chat/answers/51f0a2dd-3e79-4f53-9c7d-0c3d3f1cb0b7/sources \
+  -H 'Authorization: Bearer <token>'
+```
+
+Success response (`200`):
+
+```json
+{
+  "answerId": "51f0a2dd-3e79-4f53-9c7d-0c3d3f1cb0b7",
+  "sources": [
+    {
+      "sourceId": "chunk-001",
+      "documentId": "8f2fdd84-dc1d-4b56-b322-6c53c8f1e3bf",
+      "fileName": "operations.txt",
+      "fileType": "PLAIN_TEXT",
+      "snippet": {
+        "content": "Temporary uploads are removed after 30 days.",
+        "startPosition": 0,
+        "endPosition": 44,
+        "context": null
+      },
+      "metadata": {
+        "title": "Operations Handbook",
+        "author": null,
+        "createdAt": "2026-03-16T09:00:00Z",
+        "pageNumber": null,
+        "chunkIndex": 0
+      },
+      "relevanceScore": 0.84,
+      "available": true
+    }
+  ],
+  "totalSources": 1,
+  "availableSources": 1
+}
+```
+
+Validation and error responses:
+
+- `401` missing or invalid authenticated principal
+- `403` answer exists but belongs to another user
+- `404` answer not found
+- `500` unexpected source-detail retrieval failure
+
+Example error body:
+
+```json
+{
+  "error": "Answer not found"
+}
+```
+
+## `GET /api/documents/{documentId}/content`
+
+- Method: `GET`
+- Endpoint: `/api/documents/{documentId}/content`
+- Request body: none
+- Auth requirement: authenticated principal UUID
+
+Behavior:
+
+- validates that the caller can access the requested document
+- returns the full stored content for text, markdown, or extracted PDF text
+- used by the chat document viewer launched from answer details
+
+Example:
+
+```bash
+curl http://localhost:8080/api/documents/8f2fdd84-dc1d-4b56-b322-6c53c8f1e3bf/content \
+  -H 'Authorization: Bearer <token>'
+```
+
+Success response (`200`):
+
+```json
+{
+  "documentId": "8f2fdd84-dc1d-4b56-b322-6c53c8f1e3bf",
+  "fileName": "operations.txt",
+  "fileType": "PLAIN_TEXT",
+  "content": "Temporary uploads are removed after 30 days. Permanent records remain available to administrators.",
+  "metadata": {
+    "title": "Operations Handbook",
+    "author": null,
+    "createdAt": "2026-03-16T09:00:00Z",
+    "fileSize": 1024,
+    "pageCount": null
+  },
+  "available": true
+}
+```
+
+Validation and error responses:
+
+- `401` missing or invalid authenticated principal
+- `403` document exists but the caller cannot access it
+- `404` document not found
+- `500` unexpected document-content retrieval failure
