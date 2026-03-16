@@ -61,8 +61,8 @@ if [ "$ATTEMPT" -eq "$MAX_ATTEMPTS" ]; then
     echo "Checking Weaviate container status..."
     if command -v podman-compose &> /dev/null; then
         podman-compose -f docker-compose.dev.yml logs --tail 20 weaviate-dev
-    elif command -v docker-compose &> /dev/null; then
-        docker-compose -f docker-compose.dev.yml logs --tail 20 weaviate-dev
+    else
+        echo "podman-compose is required to inspect Weaviate logs"
     fi
     exit 1
 fi
@@ -146,6 +146,53 @@ DOCUMENT_CHUNK_EXISTS=$(echo "$FINAL_SCHEMA" | jq -r '.classes[] | select(.class
 
 if [ "$DOCUMENT_CHUNK_EXISTS" = "DocumentChunk" ]; then
     echo "✓ DocumentChunk class verified"
+
+    ensure_property() {
+        local property_name="$1"
+        if echo "$FINAL_SCHEMA" | jq -e --arg property_name "$property_name" '.classes[] | select(.class == "DocumentChunk") | .properties[]? | select(.name == $property_name)' >/dev/null 2>&1; then
+            return 0
+        fi
+
+        local property_definition
+        property_definition=$(jq -c --arg property_name "$property_name" '.classes[] | select(.class == "DocumentChunk") | .properties[] | select(.name == $property_name)' "$SCHEMA_FILE")
+        if [ -z "$property_definition" ]; then
+            echo "ERROR: Missing property definition for $property_name in $SCHEMA_FILE"
+            exit 1
+        fi
+
+        echo "Adding missing property: $property_name"
+        PROPERTY_RESPONSE=$(curl -s -w "%{http_code}" -X POST "${WEAVIATE_URL}/v1/schema/DocumentChunk/properties" \
+            -H "Content-Type: application/json" \
+            -d "$property_definition" 2>/dev/null || echo "000")
+        PROPERTY_HTTP_CODE="${PROPERTY_RESPONSE: -3}"
+        PROPERTY_BODY="${PROPERTY_RESPONSE%???}"
+
+        case "$PROPERTY_HTTP_CODE" in
+            "200"|"201")
+                echo "✓ Added property $property_name"
+                ;;
+            "422")
+                if echo "$PROPERTY_BODY" | grep -qi "already exist"; then
+                    echo "⚠ Property $property_name already exists"
+                else
+                    echo "ERROR: Failed to add property $property_name"
+                    echo "Response: $PROPERTY_BODY"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "ERROR: Unexpected response while adding property $property_name: $PROPERTY_HTTP_CODE"
+                echo "Response: $PROPERTY_BODY"
+                exit 1
+                ;;
+        esac
+    }
+
+    for required_property in chunkIndex uploadedBy fileName fileType createdAt chunkSize; do
+        ensure_property "$required_property"
+    done
+
+    FINAL_SCHEMA=$(curl -s "${WEAVIATE_URL}/v1/schema" 2>/dev/null || echo '{"classes":[]}')
     
     # Show class properties
     PROPERTIES=$(echo "$FINAL_SCHEMA" | jq -r '.classes[] | select(.class == "DocumentChunk") | .properties[].name' 2>/dev/null || echo "")

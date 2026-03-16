@@ -6,20 +6,20 @@ This project is a private knowledge base application with:
 
 - a Quarkus backend in `backend/`
 - a React frontend in `frontend/`
-- local infrastructure in `docker-compose.yml` for PostgreSQL, Weaviate, and Ollama
+- local infrastructure in `docker-compose.yml`, managed with Podman Compose, for PostgreSQL, Weaviate, Ollama, and the app containers
 - Gradle workspace orchestration at the repository root
 
 Important current behavior:
 
-- the infrastructure stack includes Weaviate and Ollama
-- the application logic currently uses an in-memory vector store and a heuristic answer generator
+- the native dev stack includes PostgreSQL, Weaviate, Keycloak, Redis, Neo4j, and Ollama
+- the development backend can use real Weaviate retrieval, real Neo4j graph persistence, and real Ollama responses
 - Gradle is the primary workspace workflow, but the backend Maven build still exists in `backend/pom.xml`
 
 ## Prerequisites
 
 - Java 25
 - Node.js 18+
-- Docker Compose or Podman Compose
+- Podman and `podman-compose`
 
 Quick checks:
 
@@ -53,7 +53,9 @@ The setup script:
 
 For day-to-day work, the repository also supports a hybrid local setup where infrastructure runs in containers and the apps run natively.
 
-The dev service scripts support `podman-compose`, `docker-compose`, and `docker compose`.
+The dev service scripts use `podman-compose`.
+
+Current expectation: Podman is the primary local container workflow for this repository. Historical Docker-specific instructions should be treated as legacy unless a document explicitly says otherwise.
 
 Start supporting services only:
 
@@ -70,7 +72,7 @@ This uses `docker-compose.dev.yml` plus `.env.dev` to start:
 - Keycloak on `8180`
 - Redis on `6379`
 - Neo4j Browser on `7474` and Bolt on `7687`
-- Ollama on `11434` when `START_LLM=true`
+- Ollama on `11434`
 
 Before relying on local auth flows, validate the imported Keycloak realm:
 
@@ -89,6 +91,8 @@ Development realm details:
   - `jane.admin / admin123`
   - `test.user / test123`
 
+The dev database startup also applies the migration required for chat answer persistence, so local chat queries can store document references and answer-source references successfully.
+
 Startup order is managed automatically:
 
 1. PostgreSQL and Redis
@@ -96,7 +100,7 @@ Startup order is managed automatically:
 3. Weaviate schema bootstrap
 4. Keycloak
 5. Neo4j
-6. optional Ollama
+6. Ollama and model bootstrap
 
 If Weaviate needs manual recovery during local startup:
 
@@ -123,8 +127,10 @@ Native dev URLs:
 ## Start the local infrastructure stack
 
 ```bash
-docker compose up -d
+podman-compose -f docker-compose.yml up -d
 ```
+
+The compose files are now maintained for Podman Compose compatibility, including Podman-friendly volume and network naming and bind-mount options that work better on SELinux-enabled hosts.
 
 Services created by `docker-compose.yml`:
 
@@ -214,7 +220,7 @@ REACT_APP_SUPPORTED_FILE_TYPES=pdf,md,txt
 ## Example local session
 
 1. Run `./setup.sh`
-2. Run `docker compose up -d`
+2. Run `podman-compose -f docker-compose.yml up -d`
 3. Run `./gradlew dev`
 4. Open `http://localhost:3000`
 5. Upload a `.pdf`, `.md`, or `.txt` file smaller than 40 MB
@@ -224,10 +230,11 @@ Example native dev session:
 
 1. Run `./start-dev-services.sh`
 2. Run `./infrastructure/keycloak/validate-realm.sh`
-2. Run `cd backend && ./start-dev.sh`
-3. Run `cd frontend && ./start-dev.sh`
-4. Open `http://localhost:3000`
-5. Use the dev auth stub in the browser UI or the seeded Keycloak users for service checks
+3. Optionally confirm Ollama with `curl http://localhost:11434/api/tags`
+4. Run `cd backend && ./start-dev.sh`
+5. Run `cd frontend && ./start-dev.sh`
+6. Open `http://localhost:3000`
+7. Use the dev auth stub in the browser UI or the seeded Keycloak users for service checks
 
 ## Health checks
 

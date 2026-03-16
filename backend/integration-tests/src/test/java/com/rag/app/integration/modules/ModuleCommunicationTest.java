@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,13 +20,14 @@ class ModuleCommunicationTest {
         EventBus eventBus = new EventBus();
         var orchestrator = IntegrationTestFixtures.orchestrator(eventBus);
         var docs = (IntegrationTestFixtures.StubDocumentManagementFacade) readField(orchestrator, "documentManagement");
-        var chat = (IntegrationTestFixtures.StubChatSystemFacade) readField(orchestrator, "chatSystem");
         AtomicBoolean processed = new AtomicBoolean(false);
         AtomicBoolean queried = new AtomicBoolean(false);
+        AtomicReference<DocumentProcessedEvent> processedEvent = new AtomicReference<>();
 
         eventBus.register(DocumentUploadedEvent.class, orchestrator::handleDocumentUploaded);
         eventBus.register(DocumentProcessedEvent.class, event -> {
             orchestrator.handleDocumentProcessed(event);
+            processedEvent.set(event);
             processed.set(true);
         });
         eventBus.register(ChatQuerySubmittedEvent.class, event -> queried.set(true));
@@ -35,7 +37,8 @@ class ModuleCommunicationTest {
 
         Awaitility.await().atMost(Duration.ofSeconds(5)).untilTrue(processed);
         Awaitility.await().atMost(Duration.ofSeconds(5)).untilTrue(queried);
-        assertThat(chat.storedVectorDocumentId).isEqualTo(docs.documentId.toString());
+        assertThat(processedEvent.get().documentId()).isEqualTo(docs.documentId.toString());
+        assertThat(processedEvent.get().extractedTextLength()).isEqualTo(42);
         eventBus.close();
     }
 

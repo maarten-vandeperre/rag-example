@@ -7,6 +7,7 @@ function Navigation({ userRole }) {
       <NavLink to="/chat">Chat</NavLink>
       <NavLink to="/profile">Profile</NavLink>
       {userRole === 'ADMIN' ? <NavLink to="/admin">Admin</NavLink> : null}
+      {userRole === 'ADMIN' ? <NavLink to="/admin/knowledge-graph">Knowledge Graphs</NavLink> : null}
     </nav>
   );
 }

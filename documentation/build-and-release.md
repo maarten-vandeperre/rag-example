@@ -7,7 +7,7 @@ The root Gradle build in `build.gradle` manages two subprojects:
 - `backend`
 - `frontend`
 
-`settings.gradle` includes both modules, and `gradle.properties` sets Java 17 plus shared workspace metadata.
+`settings.gradle` includes both modules, and `gradle.properties` carries shared workspace metadata for the Java 25-based toolchain.
 
 ## Daily commands
 
@@ -91,6 +91,9 @@ Notes:
 ./gradlew quickBuild
 ./gradlew prepareRelease
 ./gradlew buildWorkspace
+./gradlew verifyPodmanTooling
+./gradlew validatePodmanComposeFiles
+./gradlew verifyPodmanContainerWorkflow
 ```
 
 Important behavior:
@@ -101,6 +104,9 @@ Important behavior:
 - `quickBuild` packages the backend and builds the production frontend bundle
 - `buildWorkspace` verifies backend and frontend build outputs together
 - `prepareRelease` runs verification before building release outputs
+- `verifyPodmanTooling` checks that `podman` and `podman-compose` are installed
+- `validatePodmanComposeFiles` runs Podman Compose config validation for both compose files
+- `verifyPodmanContainerWorkflow` validates compose files and builds the backend, frontend, and database images through Podman
 
 ## Gradle workflow integration tests
 
@@ -149,8 +155,19 @@ Supporting services:
 
 Notes:
 
-- the lifecycle scripts support `podman-compose`, `docker-compose`, and `docker compose`
+- the lifecycle scripts use `podman-compose`
 - `./stop-dev-services.sh --clean` removes persisted local dev volumes
+- the compose files are maintained for Podman Compose compatibility in both `docker-compose.yml` and `docker-compose.dev.yml`
+
+Container build tasks are Podman-native:
+
+```bash
+./gradlew buildDatabaseContainerImage
+./gradlew :backend:buildContainerImage
+./gradlew :frontend:buildContainerImage
+./gradlew buildContainerImages
+./gradlew verifyPodmanContainerWorkflow
+```
 
 Backend native dev:
 
@@ -187,6 +204,13 @@ Backend test split:
 - unit tests: default `test` and `unitTest`
 - integration tests: `integrationTest`
 
+Notable backend integration coverage now includes an end-to-end workflow test for:
+
+- document upload
+- document processing
+- chat query execution
+- knowledge graph browsing and search
+
 ## Release outputs
 
 Backend artifacts:
@@ -213,6 +237,20 @@ The release zip includes:
 - `docker-compose.yml`
 - `gradlew`, `gradlew.bat`
 - `gradle/`
+
+## CI workflow
+
+The repository now includes a Podman-based GitHub Actions workflow:
+
+- `.github/workflows/podman-ci.yml`
+
+What it verifies:
+
+- Java 25 and Node.js 18 setup
+- workspace `healthCheck`
+- targeted `:backend:shared-kernel:test` and `:frontend:test`
+- `verifyPodmanContainerWorkflow`
+- helper-script syntax checks and Podman Compose validation for both compose files
 
 ## Legacy build paths
 

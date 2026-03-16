@@ -29,7 +29,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.UUID;
 
-@Path("/api")
+@Path("/api/documents")
 @Produces(MediaType.APPLICATION_JSON)
 @ApplicationScoped
 public class DocumentLibraryResource {
@@ -43,7 +43,6 @@ public class DocumentLibraryResource {
     }
 
     @GET
-    @Path("/documents")
     public Response getDocuments(@HeaderParam("X-User-Id") String userId,
                                  @QueryParam("includeAll") @DefaultValue("false") boolean includeAll) {
         try {
@@ -54,8 +53,6 @@ public class DocumentLibraryResource {
         }
     }
 
-    @GET
-    @Path("/admin/documents/progress")
     public Response getAdminProgress(@HeaderParam("X-User-Id") String userId) {
         try {
             GetAdminProgressOutput output = getAdminProgress.execute(new GetAdminProgressInput(userId));

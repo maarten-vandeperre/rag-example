@@ -34,11 +34,11 @@ Current compose details that matter for debugging:
 
 The service scripts read `.env.dev` and wait for service readiness before reporting success.
 
-The lifecycle scripts are container-runtime agnostic and try, in order:
+The repository compose files are maintained for Podman Compose compatibility, with Podman-friendly shared volume/network naming and bind-mount relabeling where needed.
 
-- `podman-compose`
-- `docker-compose`
-- `docker compose`
+The lifecycle scripts use `podman-compose`.
+
+Current expectation: local service management is Podman-first, and the helper scripts are documented around `podman-compose` behavior.
 
 Startup order:
 
@@ -47,11 +47,12 @@ Startup order:
 3. Weaviate schema initialization through `infrastructure/weaviate/init-weaviate-dev.sh`
 4. `keycloak-dev`
 5. `neo4j-dev`
-6. optional `ollama-dev` when `START_LLM=true`
+6. `ollama-dev` plus model bootstrap
 
 Required files checked before startup:
 
 - `infrastructure/database/init-dev.sql`
+- `infrastructure/database/migrate-dev.sql`
 - `infrastructure/database/sample-dev-data.sql`
 - `infrastructure/keycloak/dev-realm.json`
 - `infrastructure/weaviate/init-weaviate-dev.sh`
@@ -87,8 +88,12 @@ Important dev profile settings from `backend/src/main/resources/application-dev.
 - OIDC realm `rag-app-dev`
 - backend client `rag-app-backend`
 - PostgreSQL database `rag_app_dev`
+- vector store provider `weaviate`
 - Weaviate provider URL `http://localhost:8080`
+- LLM provider `ollama`
 - Ollama model `tinyllama`
+- graph store provider `neo4j`
+- Neo4j Bolt URI `bolt://localhost:7687`
 - document storage path `./storage/documents`
 
 Current backend toolchain notes:
@@ -170,7 +175,6 @@ Use `.env.dev.template` as the starting point for new local overrides.
 Important values:
 
 ```properties
-START_LLM=false
 DB_PORT=5432
 WEAVIATE_PORT=8080
 KEYCLOAK_PORT=8180
@@ -180,7 +184,7 @@ NEO4J_BOLT_PORT=7687
 OLLAMA_PORT=11434
 ```
 
-When `START_LLM=false`, the core dev stack can still be considered healthy without Ollama.
+Ollama is now part of the expected local dev stack because backend development mode targets a real local Ollama endpoint.
 
 ## Database and vector tooling
 

@@ -66,6 +66,26 @@ Example failure scenarios:
 - a scanned image PDF with no embedded text becomes `FAILED`
 - a markdown file containing only formatting characters becomes `FAILED`
 
+If documents remain in `UPLOADED`, use the stuck-document admin endpoints to inspect or clean them up instead of editing rows manually:
+
+```bash
+curl http://localhost:8081/api/admin/documents/stuck
+curl -X POST http://localhost:8081/api/admin/documents/stuck/<documentId>/mark-failed
+curl -X POST http://localhost:8081/api/admin/documents/stuck/cleanup
+```
+
+### Search works but knowledge graph data is missing
+
+Checks:
+
+- this is currently a supported degraded mode in the modular document-processing pipeline
+- search indexing and knowledge extraction are tracked separately
+- a knowledge extraction failure does not have to block document readiness for search
+
+Use this expectation when a document can be queried successfully but does not yet appear in knowledge graph views.
+
+If knowledge extraction intermittently succeeds after retries, that is also expected: the modular pipeline now applies timeout and retry controls to knowledge processing without re-running vector indexing unnecessarily.
+
 ## Chat problems
 
 ### No answer found
@@ -76,6 +96,24 @@ Checks:
 - confirm the user is allowed to query the matching documents
 - for standard users, only their own `READY` documents are searched
 - verify the question overlaps with extracted content
+
+### Unable to process chat query
+
+Checks:
+
+- confirm the dev database schema includes the chat persistence changes required for answer references
+- restart local services so the dev migration runs again if your database was created before the latest chat changes
+- verify PostgreSQL is healthy before restarting the backend
+- in development, send `X-User-Id` with the chat request
+
+Example:
+
+```bash
+curl -X POST http://localhost:8081/api/chat/query \
+  -H 'Content-Type: application/json' \
+  -H 'X-User-Id: 11111111-1111-1111-1111-111111111111' \
+  -d '{"question":"How do I upload a file?","maxResponseTimeMs":20000}'
+```
 
 ### Timeout
 
@@ -117,8 +155,8 @@ If the drawer previously showed `No source snippet is available`, regenerate the
 
 Checks:
 
-- run `docker compose ps`
-- inspect logs with `docker compose logs <service>`
+- run `podman-compose -f docker-compose.yml ps`
+- inspect logs with `podman-compose -f docker-compose.yml logs <service>`
 - confirm ports `3000`, `8080`, and `11434` are free
 
 ### Weaviate or Ollama confusion
@@ -143,7 +181,9 @@ Checks:
 - confirm `.env.dev` values match the expected local ports
 - verify PostgreSQL `5432`, Weaviate `8080`, Keycloak `8180`, Redis `6379`, and Ollama `11434` are free
 
-The service scripts now support `podman-compose`, `docker-compose`, and `docker compose`, so verify which runtime was selected before debugging container state.
+The service scripts now use `podman-compose`, so verify Podman health before debugging container state.
+
+If you still have old Docker-oriented shell habits, prefer rerunning the repository helpers instead of mixing container runtimes during the same local session.
 
 ### Startup fails before services become ready
 
@@ -226,9 +266,27 @@ curl http://localhost:8080/v1/schema
 
 Checks:
 
-- Ollama is optional in the dev compose stack
-- it starts only when `START_LLM=true`
-- if not enabled, an unreachable Ollama endpoint does not mean the core dev stack failed
+- verify `curl http://localhost:11434/api/tags` returns the local model list
+- verify `tinyllama` is available before debugging backend chat quality issues
+- restart `./start-dev-services.sh` if the model bootstrap did not complete cleanly
+
+Current expectation: the dev backend targets a real local Ollama endpoint, so an unreachable Ollama service can directly affect chat behavior.
+
+### Weaviate-backed chat retrieval is missing expected content
+
+Checks:
+
+- confirm the backend dev profile is using `app.vectorstore.provider=weaviate`
+- verify the uploaded document created `DocumentChunk` entries in Weaviate
+- if your local Weaviate schema predates the current setup, rerun `./infrastructure/weaviate/init-weaviate-dev.sh`
+
+Example verification:
+
+```bash
+curl http://localhost:8080/v1/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"{ Get { DocumentChunk { documentId chunkIndex textContent fileName } } }"}'
+```
 
 ### Neo4j is unavailable in native development
 

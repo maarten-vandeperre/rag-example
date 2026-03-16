@@ -1,2 +1,3 @@
 * podman instead of docker => already supported, but remove all docker references, legacy tech should not be in
 * .gradle, frontend/.gradle, .idea, .vscode directories out of git
+* extend agents to have integration test coverage

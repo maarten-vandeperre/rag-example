@@ -54,7 +54,8 @@ services:
       WEAVIATE_URL: ${WEAVIATE_URL:-http://weaviate:8080}
     entrypoint: ["/bin/sh", "/schema/docker-entrypoint.sh"]
     volumes:
-      - ./infrastructure/weaviate:/schema:ro
+      # Podman bind mounts need shared relabeling on SELinux hosts.
+      - ./infrastructure/weaviate:/schema:ro,z
     networks:
       - rag-network
 
@@ -89,7 +90,8 @@ services:
       OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-tinyllama}
     entrypoint: ["/bin/sh", "/scripts/docker-entrypoint.sh"]
     volumes:
-      - ./infrastructure/ollama:/scripts:ro
+      # Podman bind mounts need shared relabeling on SELinux hosts.
+      - ./infrastructure/ollama:/scripts:ro,z
     networks:
       - rag-network
 
@@ -143,9 +145,14 @@ services:
 networks:
   rag-network:
     driver: bridge
+    name: rag-network
 
 volumes:
   postgres-data:
+    name: rag-postgres-data
   weaviate-data:
+    name: rag-weaviate-data
   document-storage:
+    name: rag-document-storage
   ollama-models:
+    name: rag-ollama-models

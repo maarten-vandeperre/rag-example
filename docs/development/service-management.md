@@ -1,6 +1,6 @@
 # Service Management Guide
 
-The local service scripts support `podman-compose`, `docker-compose`, and `docker compose`.
+The local service scripts use `podman-compose` for service lifecycle management.
 
 ## Lifecycle Scripts
 
@@ -23,7 +23,7 @@ Behavior:
 
 ### PostgreSQL
 
-- Container: `rag-postgres-dev`
+- Service: `postgres-dev`
 - Port: `5432`
 
 ```bash
@@ -34,7 +34,7 @@ podman logs rag-postgres-dev
 
 ### Weaviate
 
-- Container: `rag-weaviate-dev`
+- Service: `weaviate-dev`
 - Port: `8080`
 
 ```bash
@@ -45,7 +45,7 @@ curl http://localhost:8080/v1/meta
 
 ### Keycloak
 
-- Container: `rag-keycloak-dev`
+- Service: `keycloak-dev`
 - Port: `8180`
 - Backed by PostgreSQL in the dev compose stack
 
@@ -56,7 +56,7 @@ curl http://localhost:8180/health/ready
 
 ### Redis
 
-- Container: `rag-redis-dev`
+- Service: `redis-dev`
 - Port: `6379`
 
 ```bash
@@ -65,7 +65,7 @@ redis-cli -h localhost ping
 
 ### Neo4j
 
-- Container: `rag-neo4j-dev`
+- Service: `neo4j-dev`
 - HTTP Browser Port: `7474`
 - Bolt Port: `7687`
 
@@ -78,7 +78,7 @@ curl http://localhost:7474
 
 ### Ollama
 
-- Container: `rag-ollama-dev`
+- Service: `ollama-dev`
 - Port: `11434`
 - Optional: starts only when `START_LLM=true`
 

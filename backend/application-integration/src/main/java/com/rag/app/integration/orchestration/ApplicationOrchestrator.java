@@ -71,16 +71,21 @@ public final class ApplicationOrchestrator {
 
     public void handleDocumentUploaded(DocumentUploadedEvent event) {
         var processResult = documentManagement.processDocument(new ProcessDocumentInput(UUID.fromString(event.documentId())));
-        String extractedContent = processResult.finalStatus() == DocumentStatus.READY
-            ? "processed-content-" + event.documentId()
-            : null;
-        eventBus.publish(new DocumentProcessedEvent(event.documentId(), processResult.finalStatus(), extractedContent));
+        eventBus.publish(new DocumentProcessedEvent(
+            event.documentId(),
+            processResult.finalStatus(),
+            null,
+            processResult.extractedTextLength(),
+            processResult.knowledgeProcessingStatus(),
+            processResult.knowledgeProcessingWarnings(),
+            processResult.knowledgeProcessingError(),
+            processResult.associatedGraphId() == null ? null : processResult.associatedGraphId().value()
+        ));
     }
 
     public void handleDocumentProcessed(DocumentProcessedEvent event) {
-        if (event.status() == DocumentStatus.READY && event.extractedContent() != null) {
-            chatSystem.storeDocumentVectors(event.documentId(), event.extractedContent());
-        }
+        // Search indexing and knowledge graph processing are already completed inside document-management.
+        // This handler intentionally keeps the event flow alive for observers without duplicating side effects.
     }
 
     public void handleUserAuthenticated(UserAuthenticatedEvent event) {
@@ -102,8 +107,32 @@ public final class ApplicationOrchestrator {
         if (!userManagement.isAuthorized(requestedUserId, "query_documents", "read")) {
             throw new IllegalArgumentException("User not authorized to access answer source details");
         }
-        
-        return chatSystem.getAnswerSourceDetails(answerId, userId);
+
+        GetAnswerSourceDetailsOutput output = chatSystem.getAnswerSourceDetails(new GetAnswerSourceDetailsInput(answerId, userId));
+        return AnswerSourceDetailsResponse.success(
+            output.answerId(),
+            output.sourceDetails().stream()
+                .map(source -> new SourceDetailDto(
+                    source.chunkId(),
+                    source.documentId(),
+                    source.documentName(),
+                    source.documentType(),
+                    source.snippetContent(),
+                    source.snippetContext(),
+                    source.startPosition(),
+                    source.endPosition(),
+                    source.documentTitle(),
+                    source.pageNumber(),
+                    source.chunkIndex(),
+                    source.relevanceScore(),
+                    source.isAvailable(),
+                    source.errorMessage()
+                ))
+                .toList(),
+            output.totalSources(),
+            output.availableSources(),
+            output.errorMessage()
+        );
     }
 
     private List<String> getAccessibleDocuments(String userId) {

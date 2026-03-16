@@ -4,6 +4,8 @@ import com.rag.app.chat.domain.entities.ChatMessage;
 import com.rag.app.chat.domain.valueobjects.DocumentReference;
 import com.rag.app.chat.interfaces.ChatSystemFacade;
 import com.rag.app.chat.usecases.models.DocumentChunk;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsInput;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsOutput;
 import com.rag.app.chat.usecases.models.GetChatHistoryInput;
 import com.rag.app.chat.usecases.models.GetChatHistoryOutput;
 import com.rag.app.chat.usecases.models.QueryDocumentsInput;
@@ -12,6 +14,7 @@ import com.rag.app.document.domain.entities.Document;
 import com.rag.app.document.domain.valueobjects.DocumentMetadata;
 import com.rag.app.document.domain.valueobjects.DocumentStatus;
 import com.rag.app.document.domain.valueobjects.FileType;
+import com.rag.app.document.domain.valueobjects.KnowledgeProcessingStatus;
 import com.rag.app.document.interfaces.DocumentManagementFacade;
 import com.rag.app.document.usecases.models.GetAdminProgressInput;
 import com.rag.app.document.usecases.models.GetAdminProgressOutput;
@@ -45,6 +48,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,10 +73,17 @@ class ApplicationOrchestratorTest {
         assertTrue(authentication.authenticated());
 
         CountDownLatch latch = new CountDownLatch(1);
-        eventBus.register(DocumentProcessedEvent.class, event -> latch.countDown());
+        AtomicReference<DocumentProcessedEvent> processedEvent = new AtomicReference<>();
+        eventBus.register(DocumentProcessedEvent.class, event -> {
+            processedEvent.set(event);
+            latch.countDown();
+        });
         orchestrator.publishEvent(new DocumentUploadedEvent(documentManagement.documentId.toString(), "guide.md", userManagement.user.userId().toString()));
         assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertEquals(documentManagement.documentId.toString(), chatSystem.storedVectorDocumentId);
+        assertEquals(documentManagement.documentId.toString(), processedEvent.get().documentId());
+        assertEquals(KnowledgeProcessingStatus.COMPLETED_WITH_WARNINGS, processedEvent.get().knowledgeProcessingStatus());
+        assertEquals("graph-application", processedEvent.get().associatedGraphId());
+        assertTrue(chatSystem.storedVectorDocumentId == null);
 
         QueryDocumentsOutput output = orchestrator.processQuery(userManagement.user.userId().toString(), "Where is the guide?");
         assertTrue(output.success());
@@ -92,7 +103,16 @@ class ApplicationOrchestratorTest {
 
         @Override
         public ProcessDocumentOutput processDocument(ProcessDocumentInput input) {
-            return new ProcessDocumentOutput(input.documentId(), DocumentStatus.READY, 42, null);
+            return new ProcessDocumentOutput(
+                input.documentId(),
+                DocumentStatus.READY,
+                42,
+                null,
+                KnowledgeProcessingStatus.COMPLETED_WITH_WARNINGS,
+                List.of("low confidence node"),
+                null,
+                new com.rag.app.shared.domain.knowledge.valueobjects.GraphId("graph-application")
+            );
         }
 
         @Override
@@ -136,6 +156,11 @@ class ApplicationOrchestratorTest {
         @Override
         public GetChatHistoryOutput getChatHistory(GetChatHistoryInput input) {
             return new GetChatHistoryOutput(List.<ChatMessage>of());
+        }
+
+        @Override
+        public GetAnswerSourceDetailsOutput getAnswerSourceDetails(GetAnswerSourceDetailsInput input) {
+            return GetAnswerSourceDetailsOutput.success(input.answerId(), List.of(), 0, 0, "ok");
         }
 
         @Override

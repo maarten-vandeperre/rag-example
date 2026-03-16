@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import ApiClient from '../../services/ApiClient';
+import { DEFAULT_CHAT_RESPONSE_TIME_MS } from '../../services/ChatApiClient';
 import { AnswerDetailSideView } from '../chat';
 import './ChatWorkspace.css';
 import ChatMessage from './ChatMessage';
@@ -10,7 +11,7 @@ const DEFAULT_USER_ID = process.env.REACT_APP_DEFAULT_USER_ID
   || (process.env.REACT_APP_USER_ROLE === 'ADMIN'
     ? '22222222-2222-2222-2222-222222222222'
     : '11111111-1111-1111-1111-111111111111');
-const DEFAULT_TIMEOUT_MS = 20000;
+const DEFAULT_TIMEOUT_MS = DEFAULT_CHAT_RESPONSE_TIME_MS;
 
 function currentTimeLabel() {
   return new Intl.DateTimeFormat('en', {

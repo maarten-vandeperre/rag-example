@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import keycloak, { getUserInfo } from '../../../config/keycloak';
 import AdminProgress from '../../../components/AdminProgress/AdminProgress';
 
@@ -111,6 +112,9 @@ function AdminPanel({ apiUrl, userId, userRole }) {
           <h1>Admin progress overview</h1>
           <p>
             Monitor ingestion health, investigate failures, and watch active document processing across the platform.
+          </p>
+          <p>
+            <Link to="/admin/knowledge-graph">Open knowledge graph administration</Link>
           </p>
           {process.env.REACT_APP_DEBUG_MODE === 'true' && (
             <p><small>Debug mode active - User: {userId}, Role: {userRole}</small></p>

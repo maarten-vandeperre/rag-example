@@ -43,6 +43,16 @@ dependencies {
     implementation 'io.quarkus:quarkus-smallrye-openapi'
     implementation 'io.quarkus:quarkus-micrometer-registry-prometheus'
     implementation "org.apache.pdfbox:pdfbox:${pdfboxVersion}"
+    
+    // Neo4j driver for knowledge graph functionality
+    implementation 'org.neo4j.driver:neo4j-java-driver:5.26.0'
+
+    // Module dependencies for knowledge graph functionality
+    implementation project(':backend:shared-kernel')
+    implementation project(':backend:application-integration')
+    implementation project(':backend:document-management')
+    implementation project(':backend:chat-system')
+    implementation project(':backend:user-management')
 
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
@@ -75,6 +85,57 @@ tasks.register('testDevIntegration', Exec) {
     commandLine './test-dev-integration.sh'
 }
 
+tasks.register('buildContainerImage') {
+    group = 'build'
+    description = 'Builds the backend container image with Podman.'
+    dependsOn tasks.named('packageBackend')
+    dependsOn rootProject.tasks.named('verifyPodmanTooling')
+    def imageTag = "${rootProject.name}-backend:${project.version}"
+    doLast {
+        def containerContextDir = layout.buildDirectory.dir('podman/backend-image').get().asFile
+        containerContextDir.mkdirs()
+
+        def fatJarFile = tasks.named('fatJar').get().archiveFile.get().asFile
+        copy {
+            from fatJarFile
+            into containerContextDir
+            rename { 'app.jar' }
+        }
+
+        def containerfile = new File(containerContextDir, 'Containerfile')
+        containerfile.text = '''
+            FROM eclipse-temurin:25-jre-jammy
+            WORKDIR /app
+
+            RUN apt-get update \
+                && apt-get install -y --no-install-recommends curl \
+                && rm -rf /var/lib/apt/lists/* \
+                && groupadd --system appuser \
+                && useradd --system --gid appuser --create-home --home-dir /home/appuser appuser \
+                && mkdir -p /app/storage/documents \
+                && chown -R appuser:appuser /app /home/appuser
+
+            COPY --chown=appuser:appuser app.jar /app/app.jar
+
+            USER appuser
+
+            EXPOSE 8080
+
+            HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+              CMD curl -fsS http://localhost:8080/q/health || exit 1
+
+            ENV JAVA_OPTS="-XX:+UseG1GC -XX:MaxRAMPercentage=75.0 --enable-preview"
+
+            CMD ["java", "-jar", "/app/app.jar"]
+        '''.stripIndent()
+
+        project.providers.exec {
+            workingDir containerContextDir
+            commandLine rootProject.ext.podmanExecutable.absolutePath, 'build', '--format', 'docker', '-t', imageTag, '-f', 'Containerfile', '.'
+        }.result.get()
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     doFirst {
         logger.info("Compiling Java sources for ${path}...")
@@ -89,7 +150,7 @@ tasks.named('quarkusDev') {
         logger.lifecycle('Starting Quarkus development mode...')
         logger.lifecycle('If startup fails, check:')
         logger.lifecycle('1. Database connection and credentials')
-        logger.lifecycle('2. Port 8080 availability')
+        logger.lifecycle('2. Port 8081 availability')
         logger.lifecycle('3. Application configuration in application.properties')
     }
 }

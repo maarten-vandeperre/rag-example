@@ -101,6 +101,20 @@ tasks.register('buildProd', com.github.gradle.node.npm.task.NpmTask) {
     }
 }
 
+tasks.register('buildContainerImage') {
+    group = 'build'
+    description = 'Builds the frontend container image with Podman.'
+    dependsOn tasks.named('buildProd')
+    dependsOn rootProject.tasks.named('verifyPodmanTooling')
+    def imageTag = "${rootProject.name}-frontend:${project.version}"
+    doLast {
+        project.providers.exec {
+            workingDir projectDir
+            commandLine rootProject.ext.podmanExecutable.absolutePath, 'build', '--format', 'docker', '-t', imageTag, '.'
+        }.result.get()
+    }
+}
+
 tasks.register('analyzeBuild') {
     group = 'verification'
     description = 'Analyzes the frontend production bundle size.'

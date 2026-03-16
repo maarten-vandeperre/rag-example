@@ -1,6 +1,8 @@
 package com.rag.app.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rag.app.infrastructure.vector.VectorStoreImpl;
+import com.rag.app.infrastructure.vector.WeaviateVectorStore;
 import com.rag.app.usecases.interfaces.DocumentChunkStore;
 import com.rag.app.usecases.interfaces.SemanticSearch;
 import com.rag.app.usecases.interfaces.VectorStore;
@@ -17,6 +19,7 @@ import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +31,18 @@ public class VectorStoreConfiguration {
     @ConfigProperty(name = "app.vectorstore.provider", defaultValue = "memory")
     String vectorStoreProvider;
 
+    @ConfigProperty(name = "app.vectorstore.url", defaultValue = "http://localhost:8080")
+    String vectorStoreUrl;
+
+    @ConfigProperty(name = "app.vectorstore.timeout", defaultValue = "30000")
+    int vectorStoreTimeoutMs;
+
+    @ConfigProperty(name = "app.vector.max-results", defaultValue = "10")
+    int maxResults;
+
+    @ConfigProperty(name = "app.vector.similarity-threshold", defaultValue = "0.2")
+    double similarityThreshold;
+
     @Inject
     DocumentRepository documentRepository;
 
@@ -36,6 +51,9 @@ public class VectorStoreConfiguration {
 
     @Inject
     EmbeddingGenerator embeddingGenerator;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     @Produces
     @Singleton
@@ -50,9 +68,17 @@ public class VectorStoreConfiguration {
         LOG.infof("Configuring VectorStore with provider: %s", vectorStoreProvider);
         
         if ("weaviate".equalsIgnoreCase(vectorStoreProvider)) {
-            LOG.info("Weaviate VectorStore requested but not yet implemented, falling back to in-memory implementation");
-            // TODO: Implement WeaviateVectorStoreImpl when Weaviate client dependency is available
-            // return new WeaviateVectorStoreImpl(documentRepository, textChunker);
+            LOG.infof("Using Weaviate VectorStore at %s", vectorStoreUrl);
+            return new WeaviateVectorStore(
+                documentRepository,
+                textChunker,
+                embeddingGenerator,
+                objectMapper,
+                vectorStoreUrl,
+                Duration.ofMillis(vectorStoreTimeoutMs),
+                maxResults,
+                similarityThreshold
+            );
         }
         
         LOG.info("Using in-memory VectorStore implementation");

@@ -2,14 +2,12 @@ package com.rag.app.infrastructure.llm;
 
 import com.rag.app.usecases.models.DocumentChunk;
 
-import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@ApplicationScoped
 public class HeuristicLlmClient implements LlmClient {
     private static final Set<String> STOP_WORDS = Set.of(
         "a", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for", "from", "how", "in", "is",

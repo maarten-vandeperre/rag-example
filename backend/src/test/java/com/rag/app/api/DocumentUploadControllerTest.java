@@ -37,11 +37,21 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class DocumentUploadControllerTest {
+    private static final Instant FIXED_TIMESTAMP = Instant.parse("2026-03-13T10:30:00Z");
+    private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_TIMESTAMP, ZoneOffset.UTC);
 
     private static ProcessDocument createMockProcessDocument(DocumentRepository documentRepository) {
         DocumentContentExtractor mockExtractor = (content, fileType) -> "extracted text";
         VectorStore mockVectorStore = (documentId, content) -> {};
         return new ProcessDocument(documentRepository, mockExtractor, mockVectorStore);
+    }
+
+    private static UploadDocument createUploadDocument(DocumentRepository documentRepository, UserRepository userRepository) {
+        return new UploadDocument(documentRepository, userRepository, createMockProcessDocument(documentRepository), FIXED_CLOCK);
+    }
+
+    private static DocumentUploadController createController(DocumentRepository documentRepository, UserRepository userRepository) {
+        return new DocumentUploadController(createUploadDocument(documentRepository, userRepository), FIXED_CLOCK);
     }
 
     @Test
@@ -51,10 +61,7 @@ class DocumentUploadControllerTest {
         InMemoryUserRepository userRepository = new InMemoryUserRepository();
         userRepository.save(new User(userId, "uploader", "uploader@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T08:00:00Z"), true));
-        DocumentUploadController controller = new DocumentUploadController(
-            new UploadDocument(documentRepository, userRepository, createMockProcessDocument(documentRepository), Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)),
-            Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC)
-        );
+        DocumentUploadController controller = createController(documentRepository, userRepository);
         UploadDocumentRequest request = new UploadDocumentRequest();
         request.userId = userId.toString();
         request.file = new StubFileUpload(writeTempFile("guide.pdf", "pdf".getBytes()), "guide.pdf", "application/pdf");
@@ -67,7 +74,7 @@ class DocumentUploadControllerTest {
         assertEquals("guide.pdf", body.fileName());
         assertEquals("PROCESSING", body.status());
         assertEquals("Document uploaded and processing started", body.message());
-        assertEquals(Instant.parse("2026-03-13T10:30:00Z"), body.uploadedAt());
+        assertEquals(FIXED_TIMESTAMP, body.uploadedAt());
     }
 
     @Test
@@ -130,8 +137,7 @@ class DocumentUploadControllerTest {
         InMemoryUserRepository userRepository = new InMemoryUserRepository();
         userRepository.save(new User(ACTIVE_USER_ID, "uploader", "uploader@example.com", UserRole.STANDARD,
             Instant.parse("2026-03-13T08:00:00Z"), true));
-        Clock fixedClock = Clock.fixed(Instant.parse("2026-03-13T10:30:00Z"), ZoneOffset.UTC);
-        return new DocumentUploadController(new UploadDocument(documentRepository, userRepository, createMockProcessDocument(documentRepository), fixedClock), fixedClock);
+        return createController(documentRepository, userRepository);
     }
 
     private static Path writeTempFile(String fileName, byte[] content) throws Exception {

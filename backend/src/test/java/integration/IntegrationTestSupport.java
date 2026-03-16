@@ -3,6 +3,7 @@ package integration;
 import com.rag.app.api.ChatController;
 import com.rag.app.api.DocumentLibraryResource;
 import com.rag.app.api.DocumentUploadController;
+import com.rag.app.api.KnowledgeGraphResource;
 import com.rag.app.api.dto.AdminProgressResponse;
 import com.rag.app.api.dto.ChatQueryRequest;
 import com.rag.app.api.dto.ChatQueryResponse;
@@ -22,6 +23,24 @@ import com.rag.app.infrastructure.llm.ResponseValidator;
 import com.rag.app.infrastructure.vector.EmbeddingGenerator;
 import com.rag.app.infrastructure.vector.TextChunker;
 import com.rag.app.infrastructure.vector.VectorStoreImpl;
+import com.rag.app.integration.api.controllers.KnowledgeGraphController;
+import com.rag.app.integration.api.dto.knowledge.KnowledgeGraphDtoMapper;
+import com.rag.app.shared.configuration.KnowledgeProcessingConfiguration;
+import com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph;
+import com.rag.app.shared.domain.knowledge.entities.KnowledgeNode;
+import com.rag.app.shared.domain.knowledge.entities.KnowledgeRelationship;
+import com.rag.app.shared.domain.knowledge.services.KnowledgeGraphDomainService;
+import com.rag.app.shared.domain.knowledge.valueobjects.GraphId;
+import com.rag.app.shared.domain.knowledge.valueobjects.NodeId;
+import com.rag.app.shared.domain.knowledge.valueobjects.RelationshipType;
+import com.rag.app.shared.infrastructure.knowledge.HeuristicDocumentQualityValidator;
+import com.rag.app.shared.infrastructure.knowledge.HeuristicKnowledgeExtractionService;
+import com.rag.app.shared.interfaces.knowledge.KnowledgeGraphRepository;
+import com.rag.app.shared.usecases.knowledge.BrowseKnowledgeGraph;
+import com.rag.app.shared.usecases.knowledge.BuildKnowledgeGraph;
+import com.rag.app.shared.usecases.knowledge.ExtractKnowledgeFromDocument;
+import com.rag.app.shared.usecases.knowledge.GetKnowledgeGraphStatistics;
+import com.rag.app.shared.usecases.knowledge.SearchKnowledgeGraph;
 import com.rag.app.usecases.GetAdminProgress;
 import com.rag.app.usecases.GetUserDocuments;
 import com.rag.app.usecases.ProcessDocument;
@@ -34,6 +53,14 @@ import com.rag.app.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.usecases.models.ProcessingStatistics;
 import com.rag.app.usecases.repositories.DocumentRepository;
 import com.rag.app.usecases.repositories.UserRepository;
+import com.rag.app.user.domain.valueobjects.UserId;
+import com.rag.app.user.interfaces.UserManagementFacade;
+import com.rag.app.user.usecases.models.AuthenticationRequest;
+import com.rag.app.user.usecases.models.AuthenticationResult;
+import com.rag.app.user.usecases.models.GetUserProfileInput;
+import com.rag.app.user.usecases.models.GetUserProfileOutput;
+import com.rag.app.user.usecases.models.ManageUserRolesInput;
+import com.rag.app.user.usecases.models.ManageUserRolesOutput;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -57,7 +84,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.util.LinkedHashMap;
 
 final class IntegrationTestSupport {
     static final UUID STANDARD_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -69,6 +96,7 @@ final class IntegrationTestSupport {
     final ProcessDocument processDocument;
     final DocumentLibraryResource documentLibraryResource;
     final ChatController chatController;
+    final KnowledgeGraphResource knowledgeGraphResource;
 
     IntegrationTestSupport() {
         Clock clock = Clock.fixed(Instant.parse("2026-03-14T10:00:00Z"), ZoneOffset.UTC);
@@ -77,7 +105,15 @@ final class IntegrationTestSupport {
         userRepository.store(user(ADMIN_USER_ID, UserRole.ADMIN));
 
         VectorStoreImpl vectorStore = new VectorStoreImpl(documentRepository, new TextChunker(), new EmbeddingGenerator());
-        this.processDocument = new ProcessDocument(documentRepository, new DocumentContentExtractorImpl(), vectorStore);
+        InMemoryKnowledgeGraphRepository knowledgeGraphRepository = new InMemoryKnowledgeGraphRepository();
+        this.processDocument = new ProcessDocument(
+            documentRepository,
+            new DocumentContentExtractorImpl(),
+            vectorStore,
+            new ExtractKnowledgeFromDocument(new HeuristicKnowledgeExtractionService(), new HeuristicDocumentQualityValidator(), clock),
+            new BuildKnowledgeGraph(knowledgeGraphRepository, new KnowledgeGraphDomainService(), clock),
+            new KnowledgeProcessingConfiguration()
+        );
         UploadDocument uploadDocument = new UploadDocument(documentRepository, userRepository, this.processDocument, clock);
         QueryDocuments queryDocuments = new QueryDocuments(
             userRepository,
@@ -93,6 +129,15 @@ final class IntegrationTestSupport {
             new GetAdminProgress(documentRepository, userRepository)
         );
         this.chatController = new ChatController(queryDocuments);
+        this.knowledgeGraphResource = new KnowledgeGraphResource(
+            new KnowledgeGraphController(
+                new BrowseKnowledgeGraph(knowledgeGraphRepository),
+                new SearchKnowledgeGraph(knowledgeGraphRepository),
+                new GetKnowledgeGraphStatistics(knowledgeGraphRepository),
+                new KnowledgeGraphDtoMapper(),
+                new StubUserManagementFacade()
+            )
+        );
     }
 
     UploadDocumentResponse upload(UUID userId, String fileName, String contentType, byte[] bytes) throws IOException {
@@ -136,6 +181,22 @@ final class IntegrationTestSupport {
 
     Response chat(UUID userId, String question, Integer timeoutMs) {
         return chatController.query(new ChatQueryRequest(question, timeoutMs), userId.toString(), securityContext(userId));
+    }
+
+    Response knowledgeGraphs(UUID userId) {
+        return knowledgeGraphResource.listGraphs(userId.toString(), 0, 10);
+    }
+
+    Response knowledgeGraph(UUID userId, String graphId) {
+        return knowledgeGraphResource.getGraph(userId.toString(), graphId, 0, 100);
+    }
+
+    Response knowledgeGraphSearch(UUID userId, String query, String graphId) {
+        return knowledgeGraphResource.searchGraph(userId.toString(), query, graphId, List.of(), List.of(), 0, 20);
+    }
+
+    Response knowledgeGraphStatistics(UUID userId, String graphId) {
+        return knowledgeGraphResource.getStatistics(userId.toString(), graphId);
     }
 
     byte[] loadResource(String path) throws IOException {
@@ -312,6 +373,142 @@ final class IntegrationTestSupport {
 
         void store(User user) {
             users.put(user.userId(), user);
+        }
+
+        List<User> allUsers() {
+            return users.values().stream().toList();
+        }
+    }
+
+    final class StubUserManagementFacade implements UserManagementFacade {
+        @Override
+        public AuthenticationResult authenticateUser(AuthenticationRequest request) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void invalidateSession(String sessionToken) {
+        }
+
+        @Override
+        public boolean isAuthorized(UserId userId, String resource, String action) {
+            return getUserRole(userId) == com.rag.app.user.domain.valueobjects.UserRole.ADMIN;
+        }
+
+        @Override
+        public com.rag.app.user.domain.valueobjects.UserRole getUserRole(UserId userId) {
+            return findUserById(userId)
+                .map(com.rag.app.user.domain.entities.User::role)
+                .orElse(com.rag.app.user.domain.valueobjects.UserRole.STANDARD);
+        }
+
+        @Override
+        public GetUserProfileOutput getUserProfile(GetUserProfileInput input) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<com.rag.app.user.domain.entities.User> findUserById(UserId userId) {
+            return userRepository.findById(userId.value())
+                .map(user -> new com.rag.app.user.domain.entities.User(
+                    new UserId(user.userId()),
+                    user.username(),
+                    user.email(),
+                    user.role() == UserRole.ADMIN ? com.rag.app.user.domain.valueobjects.UserRole.ADMIN : com.rag.app.user.domain.valueobjects.UserRole.STANDARD,
+                    user.createdAt(),
+                    user.isActive()
+                ));
+        }
+
+        @Override
+        public boolean isActiveUser(UserId userId) {
+            return findUserById(userId).map(com.rag.app.user.domain.entities.User::isActive).orElse(false);
+        }
+
+        @Override
+        public ManageUserRolesOutput manageUserRoles(ManageUserRolesInput input) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<com.rag.app.user.domain.entities.User> getAllUsers() {
+            return userRepository.allUsers().stream()
+                .map(user -> new com.rag.app.user.domain.entities.User(
+                    new UserId(user.userId()),
+                    user.username(),
+                    user.email(),
+                    user.role() == UserRole.ADMIN ? com.rag.app.user.domain.valueobjects.UserRole.ADMIN : com.rag.app.user.domain.valueobjects.UserRole.STANDARD,
+                    user.createdAt(),
+                    user.isActive()
+                ))
+                .toList();
+        }
+    }
+
+    static final class InMemoryKnowledgeGraphRepository implements KnowledgeGraphRepository {
+        private final Map<GraphId, KnowledgeGraph> graphs = new LinkedHashMap<>();
+
+        @Override
+        public KnowledgeGraph save(KnowledgeGraph knowledgeGraph) {
+            graphs.put(knowledgeGraph.graphId(), knowledgeGraph);
+            return knowledgeGraph;
+        }
+
+        @Override
+        public Optional<KnowledgeGraph> findById(GraphId graphId) {
+            return Optional.ofNullable(graphs.get(graphId));
+        }
+
+        @Override
+        public Optional<KnowledgeGraph> findByName(String name) {
+            return graphs.values().stream().filter(graph -> graph.name().equals(name)).findFirst();
+        }
+
+        @Override
+        public List<KnowledgeGraph> findAll() {
+            return graphs.values().stream().toList();
+        }
+
+        @Override
+        public void delete(GraphId graphId) {
+            graphs.remove(graphId);
+        }
+
+        @Override
+        public boolean existsByName(String name) {
+            return findByName(name).isPresent();
+        }
+
+        @Override
+        public List<KnowledgeNode> findNodesConnectedTo(NodeId nodeId) {
+            return graphs.values().stream()
+                .flatMap(graph -> graph.relationshipsFor(nodeId).stream())
+                .flatMap(relationship -> List.of(relationship.fromNodeId(), relationship.toNodeId()).stream())
+                .filter(connectedNodeId -> !connectedNodeId.equals(nodeId))
+                .map(this::findNode)
+                .flatMap(Optional::stream)
+                .distinct()
+                .toList();
+        }
+
+        @Override
+        public List<KnowledgeRelationship> findRelationshipsByType(RelationshipType type) {
+            return graphs.values().stream()
+                .flatMap(graph -> graph.relationships().stream())
+                .filter(relationship -> relationship.relationshipType() == type)
+                .toList();
+        }
+
+        @Override
+        public KnowledgeGraph findSubgraphAroundNode(NodeId nodeId, int depth) {
+            return graphs.values().stream().filter(graph -> graph.containsNode(nodeId)).findFirst().orElseThrow();
+        }
+
+        private Optional<KnowledgeNode> findNode(NodeId nodeId) {
+            return graphs.values().stream()
+                .map(graph -> graph.getNode(nodeId))
+                .flatMap(Optional::stream)
+                .findFirst();
         }
     }
 

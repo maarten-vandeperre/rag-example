@@ -49,11 +49,33 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE TABLE IF NOT EXISTS document_references (
     reference_id VARCHAR(255) PRIMARY KEY,
     message_id VARCHAR(255) NOT NULL,
+    reference_index INTEGER NOT NULL DEFAULT 0,
     document_id VARCHAR(255) NOT NULL,
     document_name VARCHAR(500) NOT NULL,
     paragraph_reference TEXT,
     relevance_score DECIMAL(5,4),
     FOREIGN KEY (message_id) REFERENCES chat_messages(message_id) ON DELETE CASCADE,
+    FOREIGN KEY (document_id) REFERENCES documents(document_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS answer_source_references (
+    reference_id VARCHAR(255) PRIMARY KEY,
+    answer_id VARCHAR(255) NOT NULL,
+    document_id VARCHAR(255) NOT NULL,
+    chunk_id VARCHAR(255) NOT NULL,
+    snippet_content TEXT NOT NULL,
+    snippet_context TEXT,
+    start_position INT,
+    end_position INT,
+    relevance_score DECIMAL(5,4) NOT NULL,
+    source_order INT NOT NULL,
+    document_title VARCHAR(500),
+    document_filename VARCHAR(500),
+    document_file_type VARCHAR(50),
+    page_number INT,
+    chunk_index INT,
+    created_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (answer_id) REFERENCES chat_messages(message_id) ON DELETE CASCADE,
     FOREIGN KEY (document_id) REFERENCES documents(document_id) ON DELETE CASCADE
 );
 
@@ -81,8 +103,10 @@ CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
 CREATE INDEX IF NOT EXISTS idx_documents_uploaded_at ON documents(uploaded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_document_references_message_id ON document_references(message_id, reference_index);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON document_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding ON document_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX IF NOT EXISTS idx_answer_source_references_answer_id ON answer_source_references(answer_id, source_order);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
 
@@ -130,6 +154,7 @@ GROUP BY status;
 CREATE OR REPLACE FUNCTION reset_dev_data()
 RETURNS void AS $$
 BEGIN
+    TRUNCATE TABLE answer_source_references CASCADE;
     TRUNCATE TABLE document_references CASCADE;
     TRUNCATE TABLE chat_messages CASCADE;
     TRUNCATE TABLE document_chunks CASCADE;

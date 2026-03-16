@@ -1,0 +1,84 @@
+name: podman-ci
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: podman-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-workspace:
+    name: Verify workspace
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Podman and podman-compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman podman-compose
+          podman --version
+          podman-compose --version
+
+      - name: Run workspace health check
+        run: ./gradlew healthCheck
+
+      - name: Run targeted backend and frontend tests
+        run: ./gradlew :backend:shared-kernel:test :frontend:test
+
+      - name: Validate Podman compose and image workflow
+        env:
+          CI: true
+        run: ./gradlew verifyPodmanContainerWorkflow
+
+  verify-dev-service-scripts:
+    name: Verify Podman dev service scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Podman and podman-compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman podman-compose
+          podman --version
+          podman-compose --version
+
+      - name: Validate Podman helper scripts
+        run: |
+          bash -n start-dev-services.sh stop-dev-services.sh status-dev-services.sh troubleshoot-dev-services.sh \
+            infrastructure/neo4j/init-neo4j-dev.sh infrastructure/neo4j/load-sample-graph.sh \
+            infrastructure/neo4j/troubleshoot-neo4j.sh infrastructure/weaviate/init-weaviate-dev.sh \
+            infrastructure/weaviate/troubleshoot-weaviate.sh
+
+      - name: Validate compose files with Podman Compose
+        run: |
+          podman-compose -f docker-compose.yml config
+          podman-compose -f docker-compose.dev.yml config

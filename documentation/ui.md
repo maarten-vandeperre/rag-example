@@ -4,10 +4,17 @@
 
 The root app in `frontend/src/App.js` currently renders:
 
-- `AdminProgress` when `REACT_APP_USER_ROLE=ADMIN`
-- `DocumentLibrary` for other roles
+- a routed shell via `AppRoutes`
+- `/admin` for the admin panel when `REACT_APP_USER_ROLE=ADMIN`
+- `/documents` for the document library for standard users
+- `/chat` for the chat workspace
+- `/profile` for user profile flows
 
-The `ChatWorkspace` component is implemented and documented here, but it is not the default root screen today.
+Admin-only knowledge graph routes are also available:
+
+- `/admin/knowledge-graph`
+- `/admin/knowledge-graph/search`
+- `/admin/knowledge-graph/:graphId`
 
 ## Document library
 
@@ -219,3 +226,42 @@ Expected results:
 - statistics show total, uploaded, processing, ready, and failed counts
 - failed documents include failure reasons
 - processing documents include upload and processing start timestamps
+
+## Knowledge graph administration
+
+Where it appears:
+
+- available through `/admin/knowledge-graph`
+- linked from the shared navigation and admin panel for admin users only
+
+User flow:
+
+1. Sign in or run the app as an admin user
+2. Open `Knowledge Graphs` from the navigation
+3. Review the graph list summary cards and graph table
+4. Filter graphs by name
+5. Open a graph detail page
+6. Inspect nodes, relationships, and node detail information
+7. Open the search page to query across graphs
+
+Field validation and access:
+
+- non-admin users are shown an access-denied screen instead of the knowledge graph pages
+- the list page supports a graph-name filter and paginated browsing
+- the search page accepts a free-text query plus optional node-type and relationship-type filters
+- all requests use the configured API base URL and send `X-User-ID`
+
+Expected results:
+
+- admins can browse graph summaries with total node and relationship counts
+- graph detail pages show metadata, tabular nodes, tabular relationships, and inspectable node detail
+- graph search shows matching graphs, nodes, and relationships in one results page
+
+Example session:
+
+1. Open `/admin/knowledge-graph`
+2. Filter by `main`
+3. Click `Open graph`
+4. Click `Inspect` on a node row
+5. Open `/admin/knowledge-graph/search`
+6. Search for `neo4j` and review matching graph results

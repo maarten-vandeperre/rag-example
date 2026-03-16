@@ -1,5 +1,6 @@
 import ChatApiClient from './ChatApiClient';
 import DocumentApiClient from './DocumentApiClient';
+import KnowledgeGraphApiClient from './KnowledgeGraphApiClient';
 import HttpClient from '../utils/HttpClient';
 import { toApiError } from './ErrorHandler';
 import keycloak, { getAuthHeader, getUserInfo } from '../config/keycloak';
@@ -41,6 +42,7 @@ class ApiClient {
 
     this.documents = new DocumentApiClient(httpClient);
     this.chat = new ChatApiClient(httpClient);
+    this.knowledgeGraph = new KnowledgeGraphApiClient(httpClient);
   }
 
   uploadDocument(file, onProgress, options) {
@@ -53,6 +55,30 @@ class ApiClient {
 
   getAdminProgress(options) {
     return this.documents.getAdminProgress(options);
+  }
+
+  getKnowledgeGraphs(options) {
+    return this.knowledgeGraph.listGraphs(options);
+  }
+
+  getKnowledgeGraph(graphId, options) {
+    return this.knowledgeGraph.getGraph(graphId, options);
+  }
+
+  getKnowledgeGraphNodeDetails(graphId, nodeId, options) {
+    return this.knowledgeGraph.getNodeDetails(graphId, nodeId, options);
+  }
+
+  getKnowledgeGraphSubgraph(graphId, centerNodeId, options) {
+    return this.knowledgeGraph.getSubgraph(graphId, centerNodeId, options);
+  }
+
+  searchKnowledgeGraphs(options) {
+    return this.knowledgeGraph.search(options);
+  }
+
+  getKnowledgeGraphStatistics(options) {
+    return this.knowledgeGraph.getStatistics(options);
   }
 
   submitChatQuery(question, maxResponseTimeMs, options) {

@@ -95,12 +95,13 @@ public final class UploadDocument {
             processDocument.execute(new ProcessDocumentInput(savedDocument.documentId(), input.fileContent()));
             return new UploadDocumentOutput(savedDocument.documentId(), DocumentStatus.PROCESSING, "Document uploaded and processing started");
         } catch (Exception exception) {
-            // If processing fails, return the upload success but note the processing issue
+            // Mark document as FAILED so it is not stuck in UPLOADED
             String errorMessage = exception.getMessage();
             if (exception.getCause() != null) {
                 errorMessage += " (Cause: " + exception.getCause().getMessage() + ")";
             }
-            return new UploadDocumentOutput(savedDocument.documentId(), savedDocument.status(), "Document uploaded successfully, but processing failed: " + errorMessage);
+            documentRepository.save(savedDocument.withStatus(DocumentStatus.FAILED));
+            return new UploadDocumentOutput(savedDocument.documentId(), DocumentStatus.FAILED, "Document uploaded successfully, but processing failed: " + errorMessage);
         }
     }
 

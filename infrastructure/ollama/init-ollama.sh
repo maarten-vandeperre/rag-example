@@ -1,10 +1,14 @@
 #!/bin/sh
 set -eu
 
-OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
-OLLAMA_PULL_MODELS="${OLLAMA_PULL_MODELS:-tinyllama}"
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+OLLAMA_PULL_MODELS="${OLLAMA_PULL_MODELS:-${LLM_MODEL:-tinyllama}}"
 
-echo "Waiting for Ollama service to be ready..."
+model_present() {
+  curl -fsS "${OLLAMA_URL}/api/tags" | grep -Eq "\"name\":\"${1}(:[^\"]+)?\""
+}
+
+echo "Waiting for Ollama service to be ready at ${OLLAMA_URL}..."
 until curl -fsS "${OLLAMA_URL}/api/tags" >/dev/null; do
   sleep 5
 done
@@ -20,10 +24,22 @@ for model in "$@"; do
     continue
   fi
 
-  echo "Pulling model ${model}..."
+  echo "Ensuring model ${model} is available..."
+  if model_present "${model}"; then
+    echo "Model ${model} already present"
+    continue
+  fi
+
   curl -fsS "${OLLAMA_URL}/api/pull" \
     -H "Content-Type: application/json" \
-    -d "{\"name\":\"${model}\"}" >/tmp/ollama-pull-response.json
+    -d "{\"name\":\"${model}\",\"stream\":false}" >/tmp/ollama-pull-response.json
+
+  if model_present "${model}"; then
+    echo "Model ${model} is ready"
+  else
+    echo "ERROR: Model ${model} was not found after pull"
+    exit 1
+  fi
 done
 
-echo "Models pulled successfully"
+echo "Required Ollama models are available"

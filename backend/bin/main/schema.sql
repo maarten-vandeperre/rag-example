@@ -18,7 +18,13 @@ CREATE TABLE IF NOT EXISTS documents (
     content_hash VARCHAR(255),
     last_updated TIMESTAMP NOT NULL,
     failure_reason TEXT,
-    processing_started_at TIMESTAMP
+    processing_started_at TIMESTAMP,
+    knowledge_processing_status VARCHAR(50) NOT NULL DEFAULT 'NOT_STARTED',
+    knowledge_processing_warnings TEXT,
+    knowledge_processing_error TEXT,
+    knowledge_processing_started_at TIMESTAMP,
+    knowledge_processing_completed_at TIMESTAMP,
+    associated_graph_id VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (

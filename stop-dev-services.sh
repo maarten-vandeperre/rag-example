@@ -7,12 +7,8 @@ COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.dev.yml"
 determine_compose_cmd() {
   if command -v podman-compose >/dev/null 2>&1; then
     COMPOSE_CMD=(podman-compose)
-  elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
-  elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker compose)
   else
-    printf 'ERROR: No supported container orchestration tool found.\n'
+    printf 'ERROR: podman-compose is required for local service management.\n'
     exit 1
   fi
 }
@@ -25,11 +21,11 @@ determine_compose_cmd
 
 printf '=== Stopping RAG Application Development Services ===\n'
 printf 'Stopping containers...\n'
-run_compose down --remove-orphans
+run_compose down --remove-orphans >/dev/null 2>&1 || true
 
 if [ "${1:-}" = "--clean" ] || [ "${1:-}" = "-c" ]; then
   printf 'Removing volumes...\n'
-  run_compose down --volumes
+  run_compose down --volumes >/dev/null 2>&1 || true
   printf 'All development services and volumes removed.\n'
 else
   printf 'Development services stopped. Data volumes were preserved.\n'

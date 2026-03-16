@@ -19,14 +19,12 @@ podman system prune
 
 ### Runtime command detection problems
 
-The lifecycle scripts support `podman-compose`, `docker-compose`, and `docker compose`.
+The lifecycle scripts use `podman-compose`.
 
 If service management behaves unexpectedly, first confirm which command is available on your machine:
 
 ```bash
 podman-compose version
-docker-compose version
-docker compose version
 ```
 
 ## Backend Issues

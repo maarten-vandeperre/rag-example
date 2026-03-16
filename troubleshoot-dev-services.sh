@@ -8,12 +8,8 @@ ENV_FILE="${SCRIPT_DIR}/.env.dev"
 determine_compose_cmd() {
   if command -v podman-compose >/dev/null 2>&1; then
     COMPOSE_CMD=(podman-compose)
-  elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
-  elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker compose)
   else
-    printf 'ERROR: No supported container orchestration tool found.\n'
+    printf 'ERROR: podman-compose is required for local service management.\n'
     exit 1
   fi
 }

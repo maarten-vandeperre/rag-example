@@ -1,16 +1,19 @@
 package com.rag.app.chat;
 
 import com.rag.app.chat.domain.entities.ChatMessage;
+import com.rag.app.chat.domain.entities.AnswerSourceReference;
 import com.rag.app.chat.domain.services.ChatDomainService;
 import com.rag.app.chat.domain.valueobjects.DocumentReference;
 import com.rag.app.chat.domain.valueobjects.UserRole;
 import com.rag.app.chat.infrastructure.ChatSystemFacadeImpl;
 import com.rag.app.chat.infrastructure.llm.OllamaAnswerGenerator;
 import com.rag.app.chat.infrastructure.search.WeaviateVectorStore;
+import com.rag.app.chat.interfaces.AnswerSourceReferenceRepository;
 import com.rag.app.chat.interfaces.ChatMessageRepository;
 import com.rag.app.chat.interfaces.DocumentAccessService;
 import com.rag.app.chat.interfaces.UserContextService;
 import com.rag.app.chat.usecases.GenerateAnswer;
+import com.rag.app.chat.usecases.GetAnswerSourceDetails;
 import com.rag.app.chat.usecases.GetChatHistory;
 import com.rag.app.chat.usecases.QueryDocuments;
 import com.rag.app.chat.usecases.models.DocumentChunk;
@@ -36,6 +39,7 @@ class ChatSystemFacadeTest {
     @Test
     void shouldQueryDocumentsAndExposeHistoryThroughFacade() {
         InMemoryChatMessageRepository repository = new InMemoryChatMessageRepository();
+        InMemoryAnswerSourceReferenceRepository answerSourceReferenceRepository = new InMemoryAnswerSourceReferenceRepository();
         WeaviateVectorStore vectorStore = new WeaviateVectorStore();
         UserContextService userContext = new StubUserContextService();
         DocumentAccessService documentAccessService = new StubDocumentAccessService();
@@ -48,10 +52,12 @@ class ChatSystemFacadeTest {
                 vectorStore,
                 new GenerateAnswer(new OllamaAnswerGenerator()),
                 repository,
+                answerSourceReferenceRepository,
                 new ChatDomainService(),
                 clock
             ),
             new GetChatHistory(repository),
+            new GetAnswerSourceDetails(repository, answerSourceReferenceRepository),
             vectorStore,
             vectorStore
         );
@@ -121,6 +127,75 @@ class ChatSystemFacadeTest {
         @Override
         public List<ChatMessage> findRecentByUserId(String userId, int limit) {
             return findByUserId(userId).stream().limit(limit).toList();
+        }
+    }
+
+    private static final class InMemoryAnswerSourceReferenceRepository implements AnswerSourceReferenceRepository {
+        private final Map<String, AnswerSourceReference> references = new ConcurrentHashMap<>();
+
+        @Override
+        public AnswerSourceReference save(AnswerSourceReference reference) {
+            references.put(reference.getId(), reference);
+            return reference;
+        }
+
+        @Override
+        public List<AnswerSourceReference> findByAnswerIdOrderBySourceOrder(String answerId) {
+            return references.values().stream()
+                .filter(reference -> reference.getAnswerId().equals(answerId))
+                .sorted((left, right) -> Integer.compare(left.getSourceOrder(), right.getSourceOrder()))
+                .toList();
+        }
+
+        @Override
+        public Optional<AnswerSourceReference> findById(String id) {
+            return Optional.ofNullable(references.get(id));
+        }
+
+        @Override
+        public void deleteByAnswerId(String answerId) {
+            references.entrySet().removeIf(entry -> entry.getValue().getAnswerId().equals(answerId));
+        }
+
+        @Override
+        public boolean existsByAnswerId(String answerId) {
+            return references.values().stream().anyMatch(reference -> reference.getAnswerId().equals(answerId));
+        }
+
+        @Override
+        public long countByAnswerId(String answerId) {
+            return references.values().stream().filter(reference -> reference.getAnswerId().equals(answerId)).count();
+        }
+
+        @Override
+        public List<AnswerSourceReference> findByDocumentId(String documentId) {
+            return references.values().stream()
+                .filter(reference -> documentId.equals(reference.getDocumentId()))
+                .toList();
+        }
+
+        @Override
+        public void nullifyDocumentReferences(String documentId) {
+            references.replaceAll((id, reference) -> documentId.equals(reference.getDocumentId())
+                ? new AnswerSourceReference(
+                    reference.getId(),
+                    reference.getAnswerId(),
+                    null,
+                    reference.getChunkId(),
+                    reference.getSnippetContent(),
+                    reference.getSnippetContext(),
+                    reference.getStartPosition(),
+                    reference.getEndPosition(),
+                    reference.getRelevanceScore(),
+                    reference.getSourceOrder(),
+                    reference.getDocumentTitle(),
+                    reference.getDocumentFilename(),
+                    reference.getDocumentFileType(),
+                    reference.getPageNumber(),
+                    reference.getChunkIndex(),
+                    reference.getCreatedAt()
+                )
+                : reference);
         }
     }
 }

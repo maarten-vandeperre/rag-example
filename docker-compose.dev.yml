@@ -1,9 +1,6 @@
-version: '3.8'
-
 services:
   postgres-dev:
     image: pgvector/pgvector:pg15
-    container_name: rag-postgres-dev
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-rag_app_dev}
@@ -14,8 +11,9 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./infrastructure/database/init-dev.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./infrastructure/database/sample-dev-data.sql:/docker-entrypoint-initdb.d/02-sample-data.sql:ro
+      # Podman bind mounts need shared relabeling on SELinux hosts.
+      - ./infrastructure/database/init-dev.sql:/docker-entrypoint-initdb.d/01-init.sql:ro,z
+      - ./infrastructure/database/sample-dev-data.sql:/docker-entrypoint-initdb.d/02-sample-data.sql:ro,z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rag_dev_user} -d ${DB_NAME:-rag_app_dev}"]
       interval: 10s
@@ -27,7 +25,6 @@ services:
 
   weaviate-dev:
     image: semitechnologies/weaviate:1.22.4
-    container_name: rag-weaviate-dev
     restart: unless-stopped
     command:
       - --host
@@ -60,7 +57,6 @@ services:
 
   keycloak-dev:
     image: quay.io/keycloak/keycloak:23.0
-    container_name: rag-keycloak-dev
     restart: unless-stopped
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
@@ -79,7 +75,8 @@ services:
       - "${KEYCLOAK_PORT:-8180}:8080"
     volumes:
       - keycloak_dev_data:/opt/keycloak/data
-      - ./infrastructure/keycloak/dev-realm.json:/opt/keycloak/data/import/dev-realm.json:ro
+      # Podman bind mounts need shared relabeling on SELinux hosts.
+      - ./infrastructure/keycloak/dev-realm.json:/opt/keycloak/data/import/dev-realm.json:ro,z
     command:
       - start-dev
       - --import-realm
@@ -97,7 +94,6 @@ services:
 
   redis-dev:
     image: redis:7-alpine
-    container_name: rag-redis-dev
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -114,7 +110,6 @@ services:
 
   neo4j-dev:
     image: neo4j:5.26-community
-    container_name: rag-neo4j-dev
     restart: unless-stopped
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/dev-password}
@@ -150,7 +145,6 @@ services:
 
   ollama-dev:
     image: ollama/ollama:latest
-    container_name: rag-ollama-dev
     restart: unless-stopped
     environment:
       OLLAMA_HOST: 0.0.0.0
@@ -173,21 +167,30 @@ services:
 volumes:
   postgres_dev_data:
     driver: local
+    name: rag-postgres-dev-data
   weaviate_dev_data:
     driver: local
+    name: rag-weaviate-dev-data
   keycloak_dev_data:
     driver: local
+    name: rag-keycloak-dev-data
   redis_dev_data:
     driver: local
+    name: rag-redis-dev-data
   ollama_dev_models:
     driver: local
+    name: rag-ollama-dev-models
   neo4j_dev_data:
     driver: local
+    name: rag-neo4j-dev-data
   neo4j_dev_logs:
     driver: local
+    name: rag-neo4j-dev-logs
   neo4j_dev_plugins:
     driver: local
+    name: rag-neo4j-dev-plugins
 
 networks:
   rag-dev-network:
     driver: bridge
+    name: rag-dev-network

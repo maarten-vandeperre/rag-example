@@ -6,7 +6,8 @@ The current API uses a temporary mixed identity model:
 
 - document list and admin progress expect `X-User-Id`
 - upload expects a multipart `userId` field
-- chat expects an authenticated principal UUID in `SecurityContext`
+- chat accepts `X-User-Id` in development and falls back to an authenticated principal UUID in `SecurityContext`
+- knowledge graph administration expects `X-User-ID` and admin access
 
 Document this clearly in integrations because the identity contract is not yet unified.
 
@@ -187,12 +188,95 @@ Validation errors:
 - `403` for non-admin or invalid admin access
 - `500` for unexpected failures
 
+## `GET /api/admin/documents/stuck`
+
+- Method: `GET`
+- Endpoint: `/api/admin/documents/stuck`
+- Request body: none
+
+Behavior:
+
+- returns documents that are still in `UPLOADED`
+- intended as a lightweight admin cleanup aid for stuck uploads
+- currently exposes minimal JDBC-backed responses without extra authorization wiring beyond route placement
+
+Example:
+
+```bash
+curl http://localhost:8081/api/admin/documents/stuck
+```
+
+Success response (`200`):
+
+```json
+{
+  "documents": [
+    {
+      "documentId": "8f2fdd84-dc1d-4b56-b322-6c53c8f1e3bf",
+      "fileName": "stuck-upload.txt",
+      "fileSize": 1024,
+      "fileType": "PLAIN_TEXT",
+      "uploadedBy": "11111111-1111-1111-1111-111111111111",
+      "uploadedAt": "2026-03-16T10:15:30Z",
+      "lastUpdated": "2026-03-16T10:15:30Z",
+      "guidance": "Document upload became stuck before processing completed. Please re-upload the document to try again."
+    }
+  ]
+}
+```
+
+## `POST /api/admin/documents/stuck/{documentId}/mark-failed`
+
+- Method: `POST`
+- Endpoint: `/api/admin/documents/stuck/{documentId}/mark-failed`
+- Request body: none
+
+Behavior:
+
+- marks one `UPLOADED` document as `FAILED`
+- clears `processing_started_at`
+- stores an explanatory failure reason telling the user to re-upload the file
+
+Example:
+
+```bash
+curl -X POST http://localhost:8081/api/admin/documents/stuck/8f2fdd84-dc1d-4b56-b322-6c53c8f1e3bf/mark-failed
+```
+
+Success response (`200`):
+
+```json
+{
+  "updatedCount": 1,
+  "documentIds": ["8f2fdd84-dc1d-4b56-b322-6c53c8f1e3bf"],
+  "message": "Marked stuck document as failed. Please re-upload the document to process it again."
+}
+```
+
+Validation and error responses:
+
+- `400` invalid UUID
+- `404` document not found
+- `409` document exists but is not stuck in `UPLOADED`
+- `500` database update failure
+
+## `POST /api/admin/documents/stuck/cleanup`
+
+- Method: `POST`
+- Endpoint: `/api/admin/documents/stuck/cleanup`
+- Request body: none
+
+Behavior:
+
+- bulk-marks all currently stuck `UPLOADED` documents as `FAILED`
+- returns the updated document ids plus a summary message
+
 ## `POST /api/chat/query`
 
 - Method: `POST`
 - Endpoint: `/api/chat/query`
 - Content type: `application/json`
-- Auth requirement: authenticated principal name must be a UUID
+- Identity requirement: `X-User-Id` in development, otherwise authenticated principal name must be a UUID
 
 Request body:
 
@@ -208,6 +292,7 @@ Example:
 ```bash
 curl -X POST http://localhost:8080/api/chat/query \
   -H 'Content-Type: application/json' \
+  -H 'X-User-Id: 11111111-1111-1111-1111-111111111111' \
   -d '{"question":"What is the retention policy?","maxResponseTimeMs":20000}'
 ```
 
@@ -239,7 +324,7 @@ Current persistence rule:
 
 Error behavior:
 
-- `400` null body, blank `question`, invalid timeout, or missing authenticated UUID
+- `400` null body, blank `question`, invalid timeout, invalid `X-User-Id`, or missing authenticated UUID
 - `404` no relevant documents or no ready documents
 - `408` query timeout
 - `500` unexpected processing failure
@@ -372,3 +457,313 @@ Validation and error responses:
 - `403` document exists but the caller cannot access it
 - `404` document not found
 - `500` unexpected document-content retrieval failure
+
+## Knowledge graph administration API
+
+These endpoints are exposed from `KnowledgeGraphResource` at `/api/knowledge-graph`.
+
+Common rules:
+
+- Method family: `GET`
+- Required header: `X-User-ID`
+- Access: admin only
+- Response envelope:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "error": null
+}
+```
+
+Error envelope:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "ADMIN_ACCESS_REQUIRED",
+    "message": "Administrator privileges are required"
+  }
+}
+```
+
+### `GET /api/knowledge-graph/graphs`
+
+- Method: `GET`
+- Endpoint: `/api/knowledge-graph/graphs`
+- Request body: none
+- Query parameters: `page` default `0`, `size` default `10`
+
+Example:
+
+```bash
+curl 'http://localhost:8081/api/knowledge-graph/graphs?page=0&size=10' \
+  -H 'X-User-ID: 22222222-2222-2222-2222-222222222222'
+```
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "graphId": "main-knowledge-graph",
+      "name": "main-knowledge-graph",
+      "totalNodes": 24,
+      "totalRelationships": 31,
+      "createdAt": "2026-03-16T10:00:00Z",
+      "lastUpdatedAt": "2026-03-16T10:15:00Z"
+    }
+  ],
+  "error": null
+}
+```
+
+Validation and error responses:
+
+- `403` non-admin requester
+- `400` invalid pagination input
+- `500` graph list retrieval failure
+
+### `GET /api/knowledge-graph/graphs/{graphId}`
+
+- Method: `GET`
+- Endpoint: `/api/knowledge-graph/graphs/{graphId}`
+- Request body: none
+- Query parameters: `page` default `0`, `size` default `100`
+
+Example:
+
+```bash
+curl 'http://localhost:8081/api/knowledge-graph/graphs/main-knowledge-graph?page=0&size=100' \
+  -H 'X-User-ID: 22222222-2222-2222-2222-222222222222'
+```
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "graphId": "main-knowledge-graph",
+    "name": "main-knowledge-graph",
+    "nodes": [
+      {
+        "nodeId": "node-1",
+        "label": "Neo4j",
+        "nodeType": "TECHNOLOGY",
+        "properties": {},
+        "sourceDocument": null,
+        "confidence": 0.92,
+        "createdAt": "2026-03-16T10:00:00Z",
+        "lastUpdatedAt": "2026-03-16T10:15:00Z"
+      }
+    ],
+    "relationships": [
+      {
+        "relationshipId": "rel-1",
+        "fromNodeId": "node-1",
+        "toNodeId": "node-2",
+        "relationshipType": "RELATED_TO",
+        "properties": {},
+        "sourceDocument": null,
+        "confidence": 0.88,
+        "createdAt": "2026-03-16T10:00:00Z"
+      }
+    ],
+    "metadata": {
+      "description": "Knowledge extracted from uploaded documents",
+      "sourceDocumentCount": 3,
+      "attributes": {}
+    },
+    "createdAt": "2026-03-16T10:00:00Z",
+    "lastUpdatedAt": "2026-03-16T10:15:00Z",
+    "totalNodes": 24,
+    "totalRelationships": 31
+  },
+  "error": null
+}
+```
+
+Validation and error responses:
+
+- `403` non-admin requester
+- `404` graph not found
+- `400` invalid graph id
+- `500` graph retrieval failure
+
+### `GET /api/knowledge-graph/graphs/{graphId}/nodes/{nodeId}`
+
+- Method: `GET`
+- Endpoint: `/api/knowledge-graph/graphs/{graphId}/nodes/{nodeId}`
+- Request body: none
+
+Example:
+
+```bash
+curl 'http://localhost:8081/api/knowledge-graph/graphs/main-knowledge-graph/nodes/node-1' \
+  -H 'X-User-ID: 22222222-2222-2222-2222-222222222222'
+```
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "node": {
+      "nodeId": "node-1",
+      "label": "Neo4j",
+      "nodeType": "TECHNOLOGY",
+      "properties": {},
+      "sourceDocument": null,
+      "confidence": 0.92,
+      "createdAt": "2026-03-16T10:00:00Z",
+      "lastUpdatedAt": "2026-03-16T10:15:00Z"
+    },
+    "connectedNodes": [],
+    "relationships": [],
+    "connectionCount": 0,
+    "relationshipTypes": []
+  },
+  "error": null
+}
+```
+
+Validation and error responses:
+
+- `403` non-admin requester
+- `404` node or graph not found
+- `400` invalid node id
+- `500` node retrieval failure
+
+### `GET /api/knowledge-graph/graphs/{graphId}/subgraph/{centerNodeId}`
+
+- Method: `GET`
+- Endpoint: `/api/knowledge-graph/graphs/{graphId}/subgraph/{centerNodeId}`
+- Request body: none
+- Query parameter: `depth` default `2`
+
+Example:
+
+```bash
+curl 'http://localhost:8081/api/knowledge-graph/graphs/main-knowledge-graph/subgraph/node-1?depth=2' \
+  -H 'X-User-ID: 22222222-2222-2222-2222-222222222222'
+```
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "centerNodeId": "node-1",
+    "depth": 2,
+    "nodes": [],
+    "relationships": [],
+    "visualization": {
+      "nodes": [],
+      "edges": []
+    }
+  },
+  "error": null
+}
+```
+
+Validation and error responses:
+
+- `403` non-admin requester
+- `400` invalid subgraph request
+- `404` graph or node not found
+- `500` subgraph retrieval failure
+
+### `GET /api/knowledge-graph/search`
+
+- Method: `GET`
+- Endpoint: `/api/knowledge-graph/search`
+- Request body: none
+- Query parameters: `query` required, optional `graphId`, `nodeTypes`, `relationshipTypes`, `page`, `size`
+
+Example:
+
+```bash
+curl 'http://localhost:8081/api/knowledge-graph/search?query=neo4j&nodeTypes=TECHNOLOGY&relationshipTypes=RELATED_TO&page=0&size=20' \
+  -H 'X-User-ID: 22222222-2222-2222-2222-222222222222'
+```
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "query": "neo4j",
+    "nodes": [],
+    "relationships": [],
+    "graphs": [
+      {
+        "graphId": "main-knowledge-graph",
+        "name": "main-knowledge-graph",
+        "totalNodes": 24,
+        "totalRelationships": 31,
+        "createdAt": "2026-03-16T10:00:00Z",
+        "lastUpdatedAt": "2026-03-16T10:15:00Z"
+      }
+    ],
+    "totalResults": 1
+  },
+  "error": null
+}
+```
+
+Validation and error responses:
+
+- `403` non-admin requester
+- `400` invalid search parameters
+- `500` search failure
+
+### `GET /api/knowledge-graph/statistics`
+
+- Method: `GET`
+- Endpoint: `/api/knowledge-graph/statistics`
+- Request body: none
+- Query parameter: optional `graphId`
+
+Example:
+
+```bash
+curl 'http://localhost:8081/api/knowledge-graph/statistics?graphId=main-knowledge-graph' \
+  -H 'X-User-ID: 22222222-2222-2222-2222-222222222222'
+```
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalGraphs": 1,
+    "totalNodes": 24,
+    "totalRelationships": 31,
+    "nodeTypeCounts": {
+      "TECHNOLOGY": 4
+    },
+    "relationshipTypeCounts": {
+      "RELATED_TO": 12
+    },
+    "averageNodeConfidence": 0.84,
+    "averageRelationshipConfidence": 0.8
+  },
+  "error": null
+}
+```
+
+Validation and error responses:
+
+- `403` non-admin requester
+- `400` invalid statistics request
+- `500` statistics retrieval failure

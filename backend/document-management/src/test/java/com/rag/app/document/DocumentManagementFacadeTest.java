@@ -23,9 +23,18 @@ import com.rag.app.document.usecases.models.GetUserDocumentsInput;
 import com.rag.app.document.usecases.models.ProcessingDocumentInfo;
 import com.rag.app.document.usecases.models.ProcessingStatistics;
 import com.rag.app.document.usecases.models.UploadDocumentInput;
+import com.rag.app.shared.configuration.KnowledgeProcessingConfiguration;
+import com.rag.app.shared.interfaces.knowledge.DocumentQualityResult;
+import com.rag.app.shared.interfaces.knowledge.DocumentQualityValidator;
+import com.rag.app.shared.interfaces.knowledge.KnowledgeExtractionException;
+import com.rag.app.shared.interfaces.knowledge.KnowledgeExtractionService;
+import com.rag.app.shared.interfaces.knowledge.KnowledgeGraphRepository;
+import com.rag.app.shared.usecases.knowledge.BuildKnowledgeGraph;
+import com.rag.app.shared.usecases.knowledge.ExtractKnowledgeFromDocument;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -51,7 +60,16 @@ class DocumentManagementFacadeTest {
 
         DocumentManagementFacadeImpl facade = new DocumentManagementFacadeImpl(
             new UploadDocument(repository, users, storage, domainService, clock),
-            new ProcessDocument(repository, storage, new StubExtractor(), vectorStore, clock),
+            new ProcessDocument(
+                repository,
+                storage,
+                new StubExtractor(),
+                vectorStore,
+                new ExtractKnowledgeFromDocument(new StubKnowledgeExtractionService(), new StubDocumentQualityValidator(), clock),
+                new BuildKnowledgeGraph(new InMemoryKnowledgeGraphRepository(), new com.rag.app.shared.domain.knowledge.services.KnowledgeGraphDomainService(), clock),
+                new KnowledgeProcessingConfiguration(),
+                clock
+            ),
             new GetUserDocuments(repository, users, domainService),
             new GetAdminProgress(repository, users, domainService),
             repository
@@ -72,6 +90,7 @@ class DocumentManagementFacadeTest {
 
         assertEquals(DocumentStatus.READY, process.finalStatus());
         assertEquals("hello module", vectorStore.lastText);
+        assertNotNull(process.knowledgeProcessingStatus());
 
         var userDocuments = facade.getUserDocuments(new GetUserDocumentsInput("user-1", false));
         assertEquals(1, userDocuments.totalCount());
@@ -91,6 +110,120 @@ class DocumentManagementFacadeTest {
         Optional<Document> document = facade.findDocumentById(upload.documentId().toString());
         assertEquals(DocumentStatus.READY, document.orElseThrow().status());
         assertEquals(1, facade.findDocumentsByUser("user-1").size());
+    }
+
+    private static final class StubDocumentQualityValidator implements DocumentQualityValidator {
+        @Override
+        public DocumentQualityResult validateForKnowledgeExtraction(String content, String documentType) {
+            return DocumentQualityResult.sufficient(List.of());
+        }
+
+        @Override
+        public boolean hasMinimumContentLength(String content) {
+            return true;
+        }
+
+        @Override
+        public boolean hasAcceptableLanguage(String content) {
+            return true;
+        }
+
+        @Override
+        public boolean hasStructuredContent(String content, String documentType) {
+            return true;
+        }
+    }
+
+    private static final class StubKnowledgeExtractionService implements KnowledgeExtractionService {
+        @Override
+        public com.rag.app.shared.domain.knowledge.valueobjects.ExtractedKnowledge extractKnowledge(String documentContent,
+                                                                                                    String documentTitle,
+                                                                                                    String documentType,
+                                                                                                    Map<String, Object> extractionOptions) throws KnowledgeExtractionException {
+            var sourceDocument = new com.rag.app.shared.domain.knowledge.valueobjects.DocumentReference(
+                UUID.nameUUIDFromBytes(documentTitle.getBytes()),
+                documentTitle,
+                null,
+                0.75d
+            );
+            return new com.rag.app.shared.domain.knowledge.valueobjects.ExtractedKnowledge(
+                List.of(),
+                List.of(),
+                sourceDocument,
+                new com.rag.app.shared.domain.knowledge.valueobjects.ExtractionMetadata(
+                    "stub",
+                    Instant.parse("2026-03-14T10:15:30Z"),
+                    Duration.ofMillis(1),
+                    extractionOptions,
+                    List.of()
+                )
+            );
+        }
+
+        @Override
+        public boolean supportsDocumentType(String documentType) {
+            return true;
+        }
+
+        @Override
+        public List<String> getSupportedExtractionTypes() {
+            return List.of("entities");
+        }
+
+        @Override
+        public Map<String, Object> getDefaultExtractionOptions() {
+            return Map.of();
+        }
+    }
+
+    private static final class InMemoryKnowledgeGraphRepository implements KnowledgeGraphRepository {
+        private final Map<com.rag.app.shared.domain.knowledge.valueobjects.GraphId, com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph> graphs = new ConcurrentHashMap<>();
+
+        @Override
+        public com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph save(com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph knowledgeGraph) {
+            graphs.put(knowledgeGraph.graphId(), knowledgeGraph);
+            return knowledgeGraph;
+        }
+
+        @Override
+        public Optional<com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph> findById(com.rag.app.shared.domain.knowledge.valueobjects.GraphId graphId) {
+            return Optional.ofNullable(graphs.get(graphId));
+        }
+
+        @Override
+        public Optional<com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph> findByName(String name) {
+            return graphs.values().stream().filter(graph -> graph.name().equals(name)).findFirst();
+        }
+
+        @Override
+        public List<com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph> findAll() {
+            return graphs.values().stream().toList();
+        }
+
+        @Override
+        public void delete(com.rag.app.shared.domain.knowledge.valueobjects.GraphId graphId) {
+            graphs.remove(graphId);
+        }
+
+        @Override
+        public boolean existsByName(String name) {
+            return findByName(name).isPresent();
+        }
+
+        @Override
+        public List<com.rag.app.shared.domain.knowledge.entities.KnowledgeNode> findNodesConnectedTo(com.rag.app.shared.domain.knowledge.valueobjects.NodeId nodeId) {
+            return List.of();
+        }
+
+        @Override
+        public List<com.rag.app.shared.domain.knowledge.entities.KnowledgeRelationship> findRelationshipsByType(com.rag.app.shared.domain.knowledge.valueobjects.RelationshipType type) {
+            return List.of();
+        }
+
+        @Override
+        public com.rag.app.shared.domain.knowledge.entities.KnowledgeGraph findSubgraphAroundNode(com.rag.app.shared.domain.knowledge.valueobjects.NodeId nodeId, int depth) {
+            throw new IllegalArgumentException("not implemented");
+        }
     }
 
     private static final class StubExtractor implements DocumentContentExtractor {

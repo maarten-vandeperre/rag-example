@@ -31,9 +31,22 @@ describe('ChatApiClient', () => {
       '/api/chat/query',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ question: 'What changed?', maxResponseTimeMs: 15000 })
+        body: JSON.stringify({ question: 'What changed?', maxResponseTimeMs: 15000 }),
+        signal: expect.any(AbortSignal)
       })
     );
+  });
+
+  test('adds client-side timeout buffer beyond server response budget', async () => {
+    const request = jest.fn().mockResolvedValue({ success: true });
+    const client = new ChatApiClient({ request });
+
+    await client.submitChatQuery('What changed?', 30000, { userId: 'user-1' });
+
+    expect(request).toHaveBeenCalledWith('/chat/query', expect.objectContaining({
+      timeoutMs: 35000,
+      body: JSON.stringify({ question: 'What changed?', maxResponseTimeMs: 30000 })
+    }));
   });
 
   test('maps timeout responses to API errors', async () => {

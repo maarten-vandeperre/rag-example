@@ -8,6 +8,7 @@ plugins {
 import org.gradle.api.tasks.testing.TestReport
 import org.gradle.jvm.tasks.Jar
 import groovy.xml.XmlSlurper
+import java.io.ByteArrayOutputStream
 
 group = 'com.rag.app'
 version = '1.0.0-SNAPSHOT'
@@ -99,6 +100,128 @@ subprojects {
 
 def existingTasks = { String taskName ->
     subprojects.collect { project -> project.tasks.findByName(taskName) }.findAll { it != null }
+}
+
+def resolveExecutable = { String command ->
+    def pathEntries = []
+    def path = System.getenv('PATH')
+    if (path) {
+        pathEntries.addAll(path.split(File.pathSeparator))
+    }
+    pathEntries.addAll(['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/opt/podman/bin'])
+
+    pathEntries
+        .collect { new File(it, command) }
+        .find { it.exists() && it.canExecute() }
+}
+
+ext {
+    podmanExecutable = resolveExecutable('podman')
+    podmanComposeExecutable = resolveExecutable('podman-compose')
+}
+
+def commandAvailable = { File executable ->
+    executable != null && executable.exists() && executable.canExecute()
+}
+
+def ensureCommandAvailable = { File executable, String commandName, String installationHint ->
+    if (!commandAvailable(executable)) {
+        throw new GradleException("Required command '${commandName}' was not found. ${installationHint}")
+    }
+}
+
+def podmanExec = { List<String> arguments, File workingDirectory = rootDir ->
+    rootProject.providers.exec {
+        workingDir workingDirectory
+        commandLine([podmanExecutable.absolutePath] + arguments)
+    }.result.get()
+}
+
+def podmanComposeExec = { List<String> arguments ->
+    rootProject.providers.exec {
+        workingDir rootDir
+        commandLine([podmanComposeExecutable.absolutePath] + arguments)
+    }.result.get()
+}
+
+tasks.register('verifyPodmanTooling') {
+    group = 'verification'
+    description = 'Validates that Podman and Podman Compose are available for container tasks.'
+    doLast {
+        ensureCommandAvailable(podmanExecutable, 'podman', 'Install Podman before running Gradle container tasks.')
+        ensureCommandAvailable(podmanComposeExecutable, 'podman-compose', 'Install podman-compose before running Gradle compose tasks.')
+        logger.lifecycle('Podman tooling is available.')
+    }
+}
+
+tasks.register('validatePodmanComposeFiles') {
+    group = 'verification'
+    description = 'Validates the repository compose files with Podman Compose.'
+    dependsOn tasks.named('verifyPodmanTooling')
+    doLast {
+        podmanComposeExec(['-f', 'docker-compose.yml', 'config'])
+        podmanComposeExec(['-f', 'docker-compose.dev.yml', 'config'])
+    }
+}
+
+tasks.register('startPodmanDevServices') {
+    group = 'application'
+    description = 'Starts development supporting services through Podman Compose.'
+    dependsOn tasks.named('verifyPodmanTooling')
+    doLast {
+        exec {
+            workingDir rootDir
+            commandLine './start-dev-services.sh'
+        }
+    }
+}
+
+tasks.register('stopPodmanDevServices') {
+    group = 'application'
+    description = 'Stops development supporting services through Podman Compose.'
+    dependsOn tasks.named('verifyPodmanTooling')
+    doLast {
+        exec {
+            workingDir rootDir
+            commandLine './stop-dev-services.sh'
+        }
+    }
+}
+
+tasks.register('statusPodmanDevServices') {
+    group = 'help'
+    description = 'Shows development supporting service status through Podman Compose.'
+    dependsOn tasks.named('verifyPodmanTooling')
+    doLast {
+        exec {
+            workingDir rootDir
+            commandLine './status-dev-services.sh'
+        }
+    }
+}
+
+tasks.register('buildDatabaseContainerImage') {
+    group = 'build'
+    description = 'Builds the database container image with Podman.'
+    dependsOn tasks.named('verifyPodmanTooling')
+    def imageTag = "${rootProject.name}-database:${rootProject.version}"
+    doLast {
+        podmanExec(['build', '--format', 'docker', '-t', imageTag, '.'], file('infrastructure/database'))
+    }
+}
+
+tasks.register('buildContainerImages') {
+    group = 'build'
+    description = 'Builds backend, frontend, and infrastructure container images with Podman.'
+    dependsOn tasks.named('buildDatabaseContainerImage')
+    dependsOn(':backend:buildContainerImage', ':frontend:buildContainerImage')
+}
+
+tasks.register('verifyPodmanContainerWorkflow') {
+    group = 'verification'
+    description = 'Runs Podman-focused Gradle verification for compose files and container builds.'
+    dependsOn tasks.named('validatePodmanComposeFiles')
+    dependsOn tasks.named('buildContainerImages')
 }
 
 tasks.register('workspaceClean') {

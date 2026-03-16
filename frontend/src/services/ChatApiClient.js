@@ -1,27 +1,30 @@
 import HttpClient from '../utils/HttpClient';
 import { ApiError } from './ErrorHandler';
 
-const DEFAULT_TIMEOUT_MS = 20000;
+export const DEFAULT_CHAT_RESPONSE_TIME_MS = 30000;
+export const CHAT_REQUEST_TIMEOUT_BUFFER_MS = 5000;
 
 class ChatApiClient {
-  constructor(httpClient = new HttpClient({ timeoutMs: DEFAULT_TIMEOUT_MS })) {
+  constructor(httpClient = new HttpClient({ timeoutMs: DEFAULT_CHAT_RESPONSE_TIME_MS + CHAT_REQUEST_TIMEOUT_BUFFER_MS })) {
     this.httpClient = httpClient;
   }
 
-  async submitChatQuery(question, maxResponseTimeMs = DEFAULT_TIMEOUT_MS, options = {}) {
+  async submitChatQuery(question, maxResponseTimeMs = DEFAULT_CHAT_RESPONSE_TIME_MS, options = {}) {
     if (!question || !question.trim()) {
       throw new ApiError('Enter a question before starting the chat.', {
         code: 'MISSING_QUESTION'
       });
     }
 
+    const resolvedMaxResponseTimeMs = maxResponseTimeMs || DEFAULT_CHAT_RESPONSE_TIME_MS;
+
     return this.httpClient.request('/chat/query', {
       method: 'POST',
       body: JSON.stringify({
         question: question.trim(),
-        maxResponseTimeMs
+        maxResponseTimeMs: resolvedMaxResponseTimeMs
       }),
-      timeoutMs: maxResponseTimeMs,
+      timeoutMs: resolvedMaxResponseTimeMs + CHAT_REQUEST_TIMEOUT_BUFFER_MS,
       userId: options.userId,
       authToken: options.authToken
     });

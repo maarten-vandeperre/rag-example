@@ -4,6 +4,8 @@ import com.rag.app.chat.domain.entities.ChatMessage;
 import com.rag.app.chat.domain.valueobjects.DocumentReference;
 import com.rag.app.chat.interfaces.ChatSystemFacade;
 import com.rag.app.chat.usecases.models.DocumentChunk;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsInput;
+import com.rag.app.chat.usecases.models.GetAnswerSourceDetailsOutput;
 import com.rag.app.chat.usecases.models.GetChatHistoryInput;
 import com.rag.app.chat.usecases.models.GetChatHistoryOutput;
 import com.rag.app.chat.usecases.models.QueryDocumentsInput;
@@ -12,6 +14,7 @@ import com.rag.app.document.domain.entities.Document;
 import com.rag.app.document.domain.valueobjects.DocumentMetadata;
 import com.rag.app.document.domain.valueobjects.DocumentStatus;
 import com.rag.app.document.domain.valueobjects.FileType;
+import com.rag.app.document.domain.valueobjects.KnowledgeProcessingStatus;
 import com.rag.app.document.interfaces.DocumentManagementFacade;
 import com.rag.app.document.usecases.models.GetAdminProgressInput;
 import com.rag.app.document.usecases.models.GetAdminProgressOutput;
@@ -62,7 +65,7 @@ public final class IntegrationTestFixtures {
 
         @Override
         public ProcessDocumentOutput processDocument(ProcessDocumentInput input) {
-            return new ProcessDocumentOutput(input.documentId(), DocumentStatus.READY, 42, null);
+            return new ProcessDocumentOutput(input.documentId(), DocumentStatus.READY, 42, null, KnowledgeProcessingStatus.COMPLETED, List.of(), null, null);
         }
 
         @Override
@@ -106,6 +109,11 @@ public final class IntegrationTestFixtures {
         @Override
         public GetChatHistoryOutput getChatHistory(GetChatHistoryInput input) {
             return new GetChatHistoryOutput(List.<ChatMessage>of());
+        }
+
+        @Override
+        public GetAnswerSourceDetailsOutput getAnswerSourceDetails(GetAnswerSourceDetailsInput input) {
+            return GetAnswerSourceDetailsOutput.success(input.answerId(), List.of(), 0, 0, "ok");
         }
 
         @Override

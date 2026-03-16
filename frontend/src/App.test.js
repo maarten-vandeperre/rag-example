@@ -30,5 +30,6 @@ test('renders admin progress overview shell', async () => {
 
   expect(await screen.findByText(/admin progress overview/i)).toBeInTheDocument();
   expect(await screen.findByText(/document processing progress/i)).toBeInTheDocument();
+  expect(await screen.findByText(/open knowledge graph administration/i)).toBeInTheDocument();
   expect(await screen.findByText(/show dev tools/i)).toBeInTheDocument();
 });

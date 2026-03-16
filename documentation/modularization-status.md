@@ -56,6 +56,7 @@ Provides standalone user and authorization use cases around:
 - profile and session behavior
 - `STANDARD` vs `ADMIN`
 - role-management flows
+- JDBC-backed user persistence for modular knowledge graph administration access checks
 
 Caveat: this is not a full live Keycloak browser integration layer.
 
@@ -69,6 +70,18 @@ Introduces shared concepts including:
 - `FileSize`
 - `DomainEvent`
 - `ValidationException`
+- knowledge graph primitives such as `KnowledgeGraph`, `KnowledgeNode`, `KnowledgeRelationship`, and related IDs and metadata value objects
+
+The shared kernel also contains merge and validation rules for combining extracted knowledge from uploaded documents before any persistence adapter is involved.
+
+Knowledge-specific shared-kernel use cases now cover:
+
+- document quality validation before extraction
+- `ExtractKnowledgeFromDocument`
+- `BuildKnowledgeGraph`
+- `ExtendExistingKnowledgeGraph`
+
+This orchestration is framework-agnostic and intended to be called from document-processing and administration layers.
 
 Caveat: the shared kernel is present, but adoption is still partial across modules.
 

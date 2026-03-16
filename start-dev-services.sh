@@ -8,12 +8,8 @@ ENV_FILE="${SCRIPT_DIR}/.env.dev"
 determine_compose_cmd() {
   if command -v podman-compose >/dev/null 2>&1; then
     COMPOSE_CMD=(podman-compose)
-  elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
-  elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker compose)
   else
-    printf 'ERROR: Neither podman-compose, docker-compose, nor docker compose is available.\n'
+    printf 'ERROR: podman-compose is required for local service management.\n'
     exit 1
   fi
 }
@@ -29,7 +25,9 @@ ensure_required_paths() {
   local file
   for file in \
     "${SCRIPT_DIR}/infrastructure/database/init-dev.sql" \
+    "${SCRIPT_DIR}/infrastructure/database/migrate-dev.sql" \
     "${SCRIPT_DIR}/infrastructure/database/sample-dev-data.sql" \
+    "${SCRIPT_DIR}/infrastructure/ollama/init-ollama.sh" \
     "${SCRIPT_DIR}/infrastructure/keycloak/dev-realm.json" \
     "${SCRIPT_DIR}/infrastructure/weaviate/init-weaviate-dev.sh" \
     "${SCRIPT_DIR}/infrastructure/weaviate/dev-schema.json" \
@@ -111,6 +109,15 @@ wait_for_http() {
 }
 
 initialize_database() {
+  printf 'Applying database schema migrations...\n'
+  if run_compose exec -T postgres-dev psql -U "${DB_USER:-rag_dev_user}" -d "${DB_NAME:-rag_app_dev}" < "${SCRIPT_DIR}/infrastructure/database/migrate-dev.sql" >/dev/null; then
+    printf 'Database schema migrations applied\n'
+  else
+    printf 'ERROR: Failed to apply database schema migrations\n'
+    show_service_logs postgres-dev
+    exit 1
+  fi
+
   printf 'Checking and loading sample data...\n'
   # Check if sample data already exists
   if run_compose exec -T postgres-dev psql -U "${DB_USER:-rag_dev_user}" -d "${DB_NAME:-rag_app_dev}" -c "SELECT COUNT(*) FROM users WHERE user_id = '22222222-2222-2222-2222-222222222222';" 2>/dev/null | grep -q "1"; then
@@ -128,7 +135,7 @@ initialize_database() {
     else
       printf 'WARNING: Failed to load essential users, but continuing...\n'
       printf 'You can manually add them with:\n'
-      printf '  podman exec rag-postgres-dev psql -U %s -d %s -c "INSERT INTO users (user_id, username, email, first_name, last_name, role, keycloak_user_id) VALUES ('"'"'22222222-2222-2222-2222-222222222222'"'"', '"'"'jane.admin'"'"', '"'"'jane.admin@example.com'"'"', '"'"'Jane'"'"', '"'"'Admin'"'"', '"'"'ADMIN'"'"', '"'"'jane.admin'"'"')"\n' "${DB_USER:-rag_dev_user}" "${DB_NAME:-rag_app_dev}"
+      printf '  podman-compose -f docker-compose.dev.yml exec -T postgres-dev psql -U %s -d %s -c "INSERT INTO users (user_id, username, email, first_name, last_name, role, keycloak_user_id) VALUES ('"'"'22222222-2222-2222-2222-222222222222'"'"', '"'"'jane.admin'"'"', '"'"'jane.admin@example.com'"'"', '"'"'Jane'"'"', '"'"'Admin'"'"', '"'"'ADMIN'"'"', '"'"'jane.admin'"'"')"\n' "${DB_USER:-rag_dev_user}" "${DB_NAME:-rag_app_dev}"
     fi
   fi
 }
@@ -164,13 +171,19 @@ initialize_neo4j_schema() {
 }
 
 start_optional_llm() {
-  if [ "${START_LLM:-false}" != "true" ]; then
+  if [ "${START_LLM:-true}" != "true" ]; then
     return 0
   fi
 
   printf 'Starting Ollama profile...\n'
   run_compose --profile llm up -d ollama-dev
   wait_for_http 'Ollama' "${OLLAMA_URL:-http://localhost:${OLLAMA_PORT:-11434}}/api/tags" 30 5 ollama-dev
+
+  printf 'Ensuring Ollama models are available...\n'
+  chmod +x "${SCRIPT_DIR}/infrastructure/ollama/init-ollama.sh"
+  OLLAMA_URL="${OLLAMA_URL:-http://localhost:${OLLAMA_PORT:-11434}}" \
+  OLLAMA_PULL_MODELS="${OLLAMA_PULL_MODELS:-${LLM_MODEL:-tinyllama}}" \
+    "${SCRIPT_DIR}/infrastructure/ollama/init-ollama.sh"
 }
 
 determine_compose_cmd
@@ -209,7 +222,7 @@ printf 'Weaviate:   %s\n' "${WEAVIATE_URL:-http://localhost:${WEAVIATE_PORT:-808
 printf 'Keycloak:   %s (%s/%s)\n' "${KEYCLOAK_URL:-http://localhost:${KEYCLOAK_PORT:-8180}}" "${KEYCLOAK_ADMIN:-admin}" "${KEYCLOAK_ADMIN_PASSWORD:-admin123}"
 printf 'Redis:      redis://localhost:%s\n' "${REDIS_PORT:-6379}"
 printf 'Neo4j:      %s (bolt: %s, %s/%s)\n' "${NEO4J_HTTP_URL:-http://localhost:${NEO4J_HTTP_PORT:-7474}}" "${NEO4J_URI:-bolt://localhost:${NEO4J_BOLT_PORT:-7687}}" "${NEO4J_USER:-neo4j}" "${NEO4J_PASSWORD:-dev-password}"
-if [ "${START_LLM:-false}" = "true" ]; then
+if [ "${START_LLM:-true}" = "true" ]; then
   printf 'Ollama:     %s\n' "${OLLAMA_URL:-http://localhost:${OLLAMA_PORT:-11434}}"
 fi
 

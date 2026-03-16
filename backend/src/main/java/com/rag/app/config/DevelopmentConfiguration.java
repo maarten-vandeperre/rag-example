@@ -20,6 +20,15 @@ public class DevelopmentConfiguration {
     @ConfigProperty(name = "quarkus.profile", defaultValue = "prod")
     String profile;
 
+    @ConfigProperty(name = "app.llm.provider", defaultValue = "heuristic")
+    String llmProvider;
+
+    @ConfigProperty(name = "app.llm.url", defaultValue = "http://localhost:11434")
+    String llmUrl;
+
+    @ConfigProperty(name = "app.llm.model", defaultValue = "tinyllama")
+    String llmModel;
+
     void onStart(@Observes StartupEvent ignoredEvent) {
         if (!"dev".equals(profile)) {
             return;
@@ -50,6 +59,7 @@ public class DevelopmentConfiguration {
         LOG.info("  Database: jdbc:postgresql://localhost:5432/rag_app_dev");
         LOG.info("  Weaviate: http://localhost:8080");
         LOG.info("  Keycloak: http://localhost:8180");
+        LOG.infof("  LLM Provider: %s (%s, model=%s)", llmProvider, llmUrl, llmModel);
         LOG.info("  Backend API: http://localhost:8081");
         LOG.info("  Swagger UI: http://localhost:8081/q/swagger-ui");
     }
